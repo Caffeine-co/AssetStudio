@@ -770,7 +770,18 @@ namespace AssetStudioCLI
                     toExportAssetDict.TryAdd(asset, exportPath);
                 }
             });
-     
+
+            // For flag --sekai-keep-single-container-filename
+            var containerAssetsCnt = new Dictionary<string, int>();
+            foreach (var toExportAsset in toExportAssetDict)
+            {
+                if (!containerAssetsCnt.ContainsKey(toExportAsset.Key.Container))
+                {
+                    containerAssetsCnt[toExportAsset.Key.Container] = 0;
+                }
+                containerAssetsCnt[toExportAsset.Key.Container] += 1;
+            }
+
             foreach (var toExportAsset in toExportAssetDict)
             {
                 var asset = toExportAsset.Key;
@@ -790,6 +801,15 @@ namespace AssetStudioCLI
                             break;
                         case WorkMode.Export:
                             Logger.Debug($"{CLIOptions.o_workMode}: {asset.Type} : {asset.Container} : {asset.Text}");
+                            if (CLIOptions.f_sekaiKeepSingleContainerFilename.Value && containerAssetsCnt[asset.Container] == 1) // CLIOptions
+                            {
+                                var containerFileName = asset.Container.Split('/').Last();
+                                var fileNameSplit = containerFileName.Split('.').ToList();
+                                fileNameSplit.RemoveAt(fileNameSplit.Count - 1);
+                                asset.Text = string.Join(".", fileNameSplit);
+                                Logger.Info($"Container only have one file, will use file name in container path instead: {asset.Text}");
+                            }
+
                             isExported = ExportConvertFile(asset, exportPath);
                             break;
                     }

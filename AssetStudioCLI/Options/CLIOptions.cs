@@ -16,6 +16,7 @@ namespace AssetStudioCLI.Options
         FBX,
         Filter,
         Advanced,
+        Custom,
     }
 
     internal enum WorkMode
@@ -132,6 +133,8 @@ namespace AssetStudioCLI.Options
         public static Option<bool> f_avoidLoadingViaTypetree;
         public static Option<bool> f_rawByteArrayFromMono;
         public static Option<bool> f_loadAllAssets;
+        //custom
+        public static Option<bool> f_sekaiKeepSingleContainerFilename;
 
         static CLIOptions()
         {
@@ -597,6 +600,19 @@ namespace AssetStudioCLI.Options
                 isFlag: true
             );
             #endregion
+
+            #region Init Custom Options
+            f_sekaiKeepSingleContainerFilename = new GroupedOption<bool>
+            (
+                optionDefaultValue: false,
+                optionName: "--sekai-keep-single-container-filename",
+                optionDescription: "\n(Flag) If specified, files which container has only one file will be \n" +
+                                "named to its filename in container path",
+                optionExample: "",
+                optionHelpGroup: HelpGroups.Custom,
+                isFlag: true
+            );
+            #endregion
         }
 
         public static void ParseArgs(string[] args)
@@ -799,6 +815,10 @@ namespace AssetStudioCLI.Options
                                 ShowOptionDescription(f_loadAllAssets, isFlag: true);
                                 return;
                         }
+                        break;
+                    case "--sekai-keep-single-container-filename":
+                        f_sekaiKeepSingleContainerFilename.Value = true;
+                        flagIndexes.Add(i);
                         break;
                 }
             }

@@ -203,4 +203,9 @@ Advanced Options:
 
   --load-all                    (Flag) If specified, Studio will load assets of all types
                                 (Only for Dump, Info and ExportRaw modes)
+
+Custom Options:
+  --sekai-keep-single-container-filename
+                                (Flag) If specified, files which container has only one file will be
+                                named to its filename in container path
 ```
