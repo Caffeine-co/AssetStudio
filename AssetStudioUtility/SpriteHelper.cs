@@ -23,42 +23,45 @@ namespace AssetStudio
     {
         public static Image<Bgra32> GetImage(this Sprite m_Sprite, SpriteMaskMode spriteMaskMode = SpriteMaskMode.On)
         {
-            if (m_Sprite.m_SpriteAtlas != null && m_Sprite.m_SpriteAtlas.TryGet(out var m_SpriteAtlas))
+            return ImageSharpNativeAotGuard.Run(() =>
             {
-                if (m_SpriteAtlas.m_RenderDataMap.TryGetValue(m_Sprite.m_RenderDataKey, out var spriteAtlasData) && spriteAtlasData.texture.TryGet(out var m_Texture2D))
+                if (m_Sprite.m_SpriteAtlas != null && m_Sprite.m_SpriteAtlas.TryGet(out var m_SpriteAtlas))
                 {
-                    return CutImage(m_Sprite, m_Texture2D, spriteAtlasData.textureRect, spriteAtlasData.textureRectOffset, spriteAtlasData.downscaleMultiplier, spriteAtlasData.settingsRaw);
-                }
-            }
-            else
-            {
-                if (m_Sprite.m_RD.texture.TryGet(out var m_Texture2D) && m_Sprite.m_RD.alphaTexture.TryGet(out var m_AlphaTexture2D) && spriteMaskMode != SpriteMaskMode.Off)
-                {
-                    Image<Bgra32> tex = null;
-                    if (spriteMaskMode != SpriteMaskMode.MaskOnly)
+                    if (m_SpriteAtlas.m_RenderDataMap.TryGetValue(m_Sprite.m_RenderDataKey, out var spriteAtlasData) && spriteAtlasData.texture.TryGet(out var m_Texture2D))
                     {
-                        tex = CutImage(m_Sprite, m_Texture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
+                        return CutImage(m_Sprite, m_Texture2D, spriteAtlasData.textureRect, spriteAtlasData.textureRectOffset, spriteAtlasData.downscaleMultiplier, spriteAtlasData.settingsRaw);
                     }
-                    var alphaTex = CutImage(m_Sprite, m_AlphaTexture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
+                }
+                else
+                {
+                    if (m_Sprite.m_RD.texture.TryGet(out var m_Texture2D) && m_Sprite.m_RD.alphaTexture.TryGet(out var m_AlphaTexture2D) && spriteMaskMode != SpriteMaskMode.Off)
+                    {
+                        Image<Bgra32> tex = null;
+                        if (spriteMaskMode != SpriteMaskMode.MaskOnly)
+                        {
+                            tex = CutImage(m_Sprite, m_Texture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
+                        }
+                        var alphaTex = CutImage(m_Sprite, m_AlphaTexture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
 
-                    switch (spriteMaskMode)
+                        switch (spriteMaskMode)
+                        {
+                            case SpriteMaskMode.On:
+                                tex.ApplyRGBMask(alphaTex, isPreview: true);
+                                return tex;
+                            case SpriteMaskMode.Export:
+                                tex.ApplyRGBMask(alphaTex);
+                                return tex;
+                            case SpriteMaskMode.MaskOnly:
+                                return alphaTex;
+                        }
+                    }
+                    else if (m_Sprite.m_RD.texture.TryGet(out m_Texture2D))
                     {
-                        case SpriteMaskMode.On:
-                            tex.ApplyRGBMask(alphaTex, isPreview: true);
-                            return tex;
-                        case SpriteMaskMode.Export:
-                            tex.ApplyRGBMask(alphaTex);
-                            return tex;
-                        case SpriteMaskMode.MaskOnly:
-                            return alphaTex;
+                        return CutImage(m_Sprite, m_Texture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
                     }
                 }
-                else if (m_Sprite.m_RD.texture.TryGet(out m_Texture2D))
-                {
-                    return CutImage(m_Sprite, m_Texture2D, m_Sprite.m_RD.textureRect, m_Sprite.m_RD.textureRectOffset, m_Sprite.m_RD.downscaleMultiplier, m_Sprite.m_RD.settingsRaw);
-                }
-            }
-            return null;
+                return null;
+            });
         }
 
         private static void ApplyRGBMask(this Image<Bgra32> tex, Image<Bgra32> texMask, bool isPreview = false)

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Library</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <AssemblyName>HarukiAssetStudioNative</AssemblyName>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <PublishAot>true</PublishAot>
+        <NativeLib>Shared</NativeLib>
+        <SelfContained>true</SelfContained>
+        <InvariantGlobalization>false</InvariantGlobalization>
+        <IsAotCompatible>true</IsAotCompatible>
+        <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+        <!-- Source-level NativeAOT warnings in the FFI path are fixed or documented with
+             targeted suppressions. The remaining IL2026/IL2104/IL3053 output is
+             third-party/BCL trim summary noise from legacy AssetStudio dependencies
+             (Newtonsoft.Json, Mono.Cecil, Microsoft.CSharp, System.*), not the
+             object-level FFI path. Keep publish output focused. -->
+        <NoWarn>$(NoWarn);IL2026;IL2104;IL3053;NU1902</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Kyaru.Texture2DDecoder" Version="0.17.0" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8" />
+        <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" />
+        <ProjectReference Include="..\AssetStudioCLI\AssetStudioCLI.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" />
+    </ItemGroup>
+
+    <Target Name="CopyHarukiNativeAotRuntimeLibraries" AfterTargets="Publish">
+        <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
+            <HarukiRuntimeNativeLibrary Include="$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.dylib" Condition="Exists('$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.dylib')" />
+        </ItemGroup>
+        <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'linux-x64' ">
+            <HarukiRuntimeNativeLibrary Include="$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.so" Condition="Exists('$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.so')" />
+        </ItemGroup>
+        <Copy SourceFiles="@(HarukiRuntimeNativeLibrary)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition=" '@(HarukiRuntimeNativeLibrary)' != '' " />
+    </Target>
+</Project>

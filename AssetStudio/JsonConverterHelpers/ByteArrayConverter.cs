@@ -11,9 +11,29 @@ namespace AssetStudio
         {
             public override byte[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
-                return reader.TokenType == JsonTokenType.StartArray
-                    ? JsonSerializer.Deserialize<List<byte>>(ref reader).ToArray() //JsonArray to ByteArray
-                    : JsonSerializer.Deserialize<byte[]>(ref reader);
+                if (reader.TokenType == JsonTokenType.String)
+                {
+                    return reader.GetBytesFromBase64();
+                }
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    throw new JsonException("Expected byte array or base64 string.");
+                }
+
+                var bytes = new List<byte>();
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndArray)
+                    {
+                        return bytes.ToArray();
+                    }
+                    if (!reader.TryGetByte(out var value))
+                    {
+                        throw new JsonException("Expected byte value.");
+                    }
+                    bytes.Add(value);
+                }
+                throw new JsonException("Unterminated byte array.");
             }
 
             public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)

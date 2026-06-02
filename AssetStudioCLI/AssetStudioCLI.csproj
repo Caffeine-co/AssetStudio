@@ -9,15 +9,24 @@
         <Copyright>Copyright © Perfare; Copyright © aelurum 2023-2025</Copyright>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <DebugType>embedded</DebugType>
+        <NoWarn>$(NoWarn);NU1902</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
+    <ItemGroup Condition=" '$(TargetFramework)' != 'net472' ">
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8" />
+    </ItemGroup>
+
     <ItemGroup>
-        <ProjectReference Include="..\AssetStudioUtility\AssetStudioUtility.csproj" />
-        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" />
+        <ProjectReference Include="..\AssetStudioUtility\AssetStudioUtility.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudioFBXWrapper\AssetStudioFBXWrapper.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudioUtility\AssetStudioUtility.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+        <ProjectReference Include="..\AssetStudioFBXWrapper\AssetStudioFBXWrapper.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
     </ItemGroup>
     
     <!-- Use local compiled win-x86 and win-x64 Texture2DDecoder libs, because libs from Kyaru.Texture2DDecoder.Windows were compiled with /MD flag -->

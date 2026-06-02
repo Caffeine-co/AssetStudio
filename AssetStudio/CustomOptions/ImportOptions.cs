@@ -1,6 +1,7 @@
 ﻿using AssetStudio.CustomOptions.Asmo;
 using SevenZip;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -32,6 +33,8 @@ namespace AssetStudio.CustomOptions
             CustomUnityVersion = null;
         }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy AssetStudio import-options path; NativeAOT FFI runtime does not depend on dynamic import option serialization.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy AssetStudio import-options path; NativeAOT FFI runtime does not depend on dynamic import option serialization.")]
         public static ImportOptions FromOptionsFile(OptionsFile optionsFile)
         {
             if (optionsFile.Reserved != 0)
@@ -48,6 +51,8 @@ namespace AssetStudio.CustomOptions
             return JsonSerializer.Deserialize<ImportOptions>(utf8Bytes, jsonOptions);
         }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy AssetStudio import-options path; NativeAOT FFI runtime does not depend on dynamic import option serialization.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy AssetStudio import-options path; NativeAOT FFI runtime does not depend on dynamic import option serialization.")]
         public void SaveToFile(string outputFolder)
         {
             var utf8Bytes = JsonSerializer.SerializeToUtf8Bytes(this, jsonOptions);

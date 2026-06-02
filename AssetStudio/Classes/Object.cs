@@ -1,4 +1,5 @@
 ﻿using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -17,7 +18,7 @@ namespace AssetStudio
         public UnityVersion version;
         [JsonIgnore]
         public BuildTarget platform;
-        [JsonConverter(typeof(JsonStringEnumConverter))]
+        [JsonConverter(typeof(JsonStringEnumConverter<ClassIDType>))]
         public ClassIDType type;
         [JsonIgnore]
         public SerializedType serializedType;
@@ -62,6 +63,8 @@ namespace AssetStudio
             }
         }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy dump/export compatibility only; NativeAOT FFI object reads avoid DumpObject.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy dump/export compatibility only; NativeAOT FFI object reads avoid DumpObject.")]
         public string DumpObject()
         {
             string str = null;

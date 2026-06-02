@@ -2,24 +2,115 @@
 using AssetStudioCLI.Options;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 
 namespace AssetStudioCLI
 {
+    internal static class ParallelExportDiagnostics
+    {
+        private static readonly ConcurrentDictionary<string, long> TimingTicks = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
+        private static readonly ConcurrentDictionary<string, long> Counters = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
+
+        public static void Reset()
+        {
+            TimingTicks.Clear();
+            Counters.Clear();
+            ImageSharpNativeAotGuard.TimingSink = AddTicks;
+        }
+
+        public static IReadOnlyDictionary<string, long> SnapshotTimingMs()
+        {
+            var snapshot = new Dictionary<string, long>(StringComparer.Ordinal);
+            foreach (var timing in TimingTicks)
+            {
+                snapshot[timing.Key] = (long)Math.Round(timing.Value * 1000.0 / Stopwatch.Frequency);
+            }
+            return snapshot;
+        }
+
+        public static IReadOnlyDictionary<string, long> SnapshotMetrics()
+        {
+            var snapshot = new Dictionary<string, long>(StringComparer.Ordinal);
+            foreach (var counter in Counters)
+            {
+                snapshot[counter.Key] = counter.Value;
+            }
+            return snapshot;
+        }
+
+        public static void Count(string name)
+        {
+            Counters.AddOrUpdate(name, 1, (_, value) => value + 1);
+        }
+
+        public static T Measure<T>(string name, Func<T> action)
+        {
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                return action();
+            }
+            finally
+            {
+                AddTicks(name, Stopwatch.GetTimestamp() - started);
+            }
+        }
+
+        public static void Measure(string name, Action action)
+        {
+            var started = Stopwatch.GetTimestamp();
+            try
+            {
+                action();
+            }
+            finally
+            {
+                AddTicks(name, Stopwatch.GetTimestamp() - started);
+            }
+        }
+
+        private static void AddTicks(string name, long elapsedTicks)
+        {
+            TimingTicks.AddOrUpdate(name, elapsedTicks, (_, value) => value + elapsedTicks);
+        }
+    }
+
     internal static class ParallelExporter
     {
         private static readonly ConcurrentDictionary<string, bool> ExportPathDict = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
+        public static void ResetDiagnostics()
+        {
+            ParallelExportDiagnostics.Reset();
+        }
+
+        public static IReadOnlyDictionary<string, long> SnapshotTimingMs()
+        {
+            return ParallelExportDiagnostics.SnapshotTimingMs();
+        }
+
+        public static IReadOnlyDictionary<string, long> SnapshotMetrics()
+        {
+            return ParallelExportDiagnostics.SnapshotMetrics();
+        }
+
         public static bool ExportTexture2D(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = "";
+            ParallelExportDiagnostics.Count("parallel.texture2d.count");
             var m_Texture2D = (Texture2D)item.Asset;
             if (CLIOptions.convertTexture)
             {
                 var type = CLIOptions.o_imageFormat.Value;
-                if (!TryExportFile(exportPath, item, "." + type.ToString().ToLower(), out var exportFullPath))
+                string exportFullPath = string.Empty;
+                var canExport = ParallelExportDiagnostics.Measure(
+                    "parallel.texture2d.try_export_file",
+                    () => TryExportFile(exportPath, item, "." + type.ToString().ToLower(), out exportFullPath));
+                if (!canExport)
                     return false;
 
                 if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
@@ -45,64 +136,100 @@ namespace AssetStudioCLI
                     debugLog += sb.ToString();
                 }
 
-                var image = m_Texture2D.ConvertToImage(flip: true);
-                if (image == null)
+                var log = debugLog;
+                var exported = ImageSharpNativeAotGuard.Run(() =>
                 {
-                    Logger.Error($"{debugLog}Export error. Failed to convert texture \"{m_Texture2D.m_Name}\" into image");
-                    return false;
-                }
-                using (image)
-                {
-                    using (var file = File.OpenWrite(exportFullPath))
+                    var image = ParallelExportDiagnostics.Measure(
+                        "parallel.texture2d.convert_to_image",
+                        () => m_Texture2D.ConvertToImage(flip: true));
+                    if (image == null)
                     {
-                        image.WriteToStream(file, type);
+                        Logger.Error($"{log}Export error. Failed to convert texture \"{m_Texture2D.m_Name}\" into image");
+                        return false;
                     }
-                    debugLog += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
-                    return true;
-                }
+                    using (image)
+                    {
+                        using (var file = File.OpenWrite(exportFullPath))
+                        {
+                            ParallelExportDiagnostics.Measure(
+                                "parallel.texture2d.write_image",
+                                () => image.WriteToStream(file, type));
+                        }
+                        log += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
+                        return true;
+                    }
+                });
+                debugLog = log;
+                return exported;
             }
-            else
-            {
-                if (!TryExportFile(exportPath, item, ".tex", out var exportFullPath))
-                    return false;
-                File.WriteAllBytes(exportFullPath, m_Texture2D.image_data.GetData());
-                debugLog += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
-                return true;
-            }
+
+            string rawExportFullPath = string.Empty;
+            var canExportRaw = ParallelExportDiagnostics.Measure(
+                "parallel.texture2d.raw_try_export_file",
+                () => TryExportFile(exportPath, item, ".tex", out rawExportFullPath));
+            if (!canExportRaw)
+                return false;
+            var rawData = ParallelExportDiagnostics.Measure(
+                "parallel.texture2d.raw_get_data",
+                () => m_Texture2D.image_data.GetData());
+            ParallelExportDiagnostics.Measure(
+                "parallel.texture2d.raw_write",
+                () => File.WriteAllBytes(rawExportFullPath, rawData));
+            debugLog += $"{item.TypeString} \"{item.Text}\" exported to \"{rawExportFullPath}\"";
+            return true;
         }
 
         public static bool ExportSprite(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = "";
+            ParallelExportDiagnostics.Count("parallel.sprite.count");
             var type = CLIOptions.o_imageFormat.Value;
             var alphaMask = SpriteMaskMode.On;
-            if (!TryExportFile(exportPath, item, "." + type.ToString().ToLower(), out var exportFullPath))
+            string exportFullPath = string.Empty;
+            var canExport = ParallelExportDiagnostics.Measure(
+                "parallel.sprite.try_export_file",
+                () => TryExportFile(exportPath, item, "." + type.ToString().ToLower(), out exportFullPath));
+            if (!canExport)
                 return false;
-            var image = ((Sprite)item.Asset).GetImage(alphaMask);
-            if (image != null)
+
+            var spriteLog = debugLog;
+            var spriteExported = ImageSharpNativeAotGuard.Run(() =>
             {
-                using (image)
+                var image = ParallelExportDiagnostics.Measure(
+                    "parallel.sprite.get_image",
+                    () => ((Sprite)item.Asset).GetImage(alphaMask));
+                if (image != null)
                 {
-                    using (var file = File.OpenWrite(exportFullPath))
+                    using (image)
                     {
-                        image.WriteToStream(file, type);
+                        using (var file = File.OpenWrite(exportFullPath))
+                        {
+                            ParallelExportDiagnostics.Measure(
+                                "parallel.sprite.write_image",
+                                () => image.WriteToStream(file, type));
+                        }
+                        spriteLog += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
+                        return true;
                     }
-                    debugLog += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
-                    return true;
                 }
-            }
-            return false;
+                return false;
+            });
+            debugLog = spriteLog;
+            return spriteExported;
         }
 
         public static bool ExportAudioClip(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = string.Empty;
+            ParallelExportDiagnostics.Count("parallel.audio.count");
             var m_AudioClip = (AudioClip)item.Asset;
             var m_AudioData = BigArrayPool<byte>.Shared.Rent(m_AudioClip.m_AudioData.Size);
             try
             {
-                string exportFullPath;
-                var dataLen = m_AudioClip.m_AudioData.GetData(m_AudioData);
+                string exportFullPath = string.Empty;
+                var dataLen = ParallelExportDiagnostics.Measure(
+                    "parallel.audio.get_data",
+                    () => m_AudioClip.m_AudioData.GetData(m_AudioData));
                 if (dataLen <= 0)
                 {
                     Logger.Error($"Export error. \"{item.Text}\": AudioData was not found");
@@ -111,7 +238,10 @@ namespace AssetStudioCLI
                 var converter = new AudioClipConverter(m_AudioClip);
                 if (CLIOptions.o_audioFormat.Value != AudioFormat.None && (converter.IsSupport || converter.IsLegacy))
                 {
-                    if (!TryExportFile(exportPath, item, ".wav", out exportFullPath))
+                    var canExport = ParallelExportDiagnostics.Measure(
+                        "parallel.audio.try_export_file",
+                        () => TryExportFile(exportPath, item, ".wav", out exportFullPath));
+                    if (!canExport)
                         return false;
 
                     if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
@@ -120,19 +250,28 @@ namespace AssetStudioCLI
                         debugLog += GenerateAudioClipInfo(m_AudioClip);
                     }
 
-                    var buffer = converter.IsLegacy
-                        ? converter.RawAudioClipToWav(ref debugLog)
-                        : converter.ConvertToWav(m_AudioData, ref debugLog);
+                    var audioLog = debugLog;
+                    var buffer = ParallelExportDiagnostics.Measure(
+                        "parallel.audio.convert_wav",
+                        () => converter.IsLegacy
+                            ? converter.RawAudioClipToWav(ref audioLog)
+                            : converter.ConvertToWav(m_AudioData, ref audioLog));
+                    debugLog = audioLog;
                     if (buffer == null)
                     {
                         Logger.Error($"{debugLog}Export error. \"{item.Text}\": Failed to convert fmod audio to Wav");
                         return false;
                     }
-                    File.WriteAllBytes(exportFullPath, buffer);
+                    ParallelExportDiagnostics.Measure(
+                        "parallel.audio.write",
+                        () => File.WriteAllBytes(exportFullPath, buffer));
                 }
                 else
                 {
-                    if (!TryExportFile(exportPath, item, converter.GetExtensionName(), out exportFullPath))
+                    var canExport = ParallelExportDiagnostics.Measure(
+                        "parallel.audio.try_export_file",
+                        () => TryExportFile(exportPath, item, converter.GetExtensionName(), out exportFullPath));
+                    if (!canExport)
                         return false;
 
                     if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
@@ -142,7 +281,9 @@ namespace AssetStudioCLI
                     }
                     using (var file = File.OpenWrite(exportFullPath))
                     {
-                        file.Write(m_AudioData, 0, m_AudioClip.m_AudioData.Size);
+                        ParallelExportDiagnostics.Measure(
+                            "parallel.audio.write",
+                            () => file.Write(m_AudioData, 0, m_AudioClip.m_AudioData.Size));
                     }
                 }
                 debugLog += $"{item.TypeString} \"{item.Text}\" exported to \"{exportFullPath}\"";
@@ -240,8 +381,8 @@ namespace AssetStudioCLI
 
         private static string FixFileName(string str)
         {
-            return str.Length >= 260 
-                ? Path.GetRandomFileName() 
+            return str.Length >= 260
+                ? Path.GetRandomFileName()
                 : Path.GetInvalidFileNameChars().Aggregate(str, (current, c) => current.Replace(c, '_'));
         }
 

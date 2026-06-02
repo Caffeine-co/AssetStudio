@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -1080,6 +1081,8 @@ namespace AssetStudio
 
         public AnimationClip() { }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
         public AnimationClip(ObjectReader reader, byte[] type, JsonSerializerOptions jsonOptions, ObjectInfo objInfo) : base(reader)
         {
             var parsedAnimClip = JsonSerializer.Deserialize<AnimationClip>(type, jsonOptions);

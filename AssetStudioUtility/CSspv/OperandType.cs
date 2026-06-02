@@ -140,12 +140,12 @@ namespace SpirV
 	}
 
 	public class EnumType<T> : EnumType<T, ParameterFactory>
-		where T : Enum
+		where T : struct, Enum
 	{
 	};
 
 	public class EnumType<T, U> : OperandType
-		where T : Enum
+		where T : struct, Enum
 		where U : ParameterFactory, new ()
 	{
 		public override bool ReadValue(IReadOnlyList<uint> words, int index, out object value, out int wordsUsed)
@@ -154,9 +154,9 @@ namespace SpirV
 			if (typeof(T).GetTypeInfo().GetCustomAttributes<FlagsAttribute>().Any())
 			{
 				Dictionary<uint, IReadOnlyList<object>> result = new Dictionary<uint, IReadOnlyList<object>>();
-				foreach (object enumValue in EnumerationType.GetEnumValues())
+				foreach (T enumValue in Enum.GetValues<T>())
 				{
-					uint bit = (uint)enumValue;
+					uint bit = Convert.ToUInt32(enumValue);
 					// bit == 0 and words[0] == 0 handles the 0x0 = None cases
 					if ((words[index] & bit) != 0 || (bit == 0 && words[index] == 0))
 					{
