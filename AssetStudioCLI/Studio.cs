@@ -31,12 +31,27 @@ namespace AssetStudioCLI
             Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
             Progress.Default = new Progress<int>(ShowCurProgressValue);
             Progress.SetInstance(1, new Progress<int>(ShowCurProgressValue));
+            ApplyOptions();
+        }
+
+        private static void ApplyOptions()
+        {
             assetsManager.LoadViaTypeTree = !CLIOptions.f_avoidLoadingViaTypetree.Value;
             assetsManager.Options.CustomUnityVersion = CLIOptions.o_unityVersion.Value;
             assetsManager.Options.BundleOptions.CustomBlockInfoCompression = CLIOptions.o_bundleBlockInfoCompression.Value;
             assetsManager.Options.BundleOptions.CustomBlockCompression = CLIOptions.o_bundleBlockCompression.Value;
             assetsManager.Options.BundleOptions.DecompressToDisk = CLIOptions.f_decompressToDisk.Value;
             assetsManager.OptionLoaders.Clear();
+        }
+
+        public static void PrepareForRun()
+        {
+            Clear();
+            ApplyOptions();
+            if (!assemblyLoader.Loaded)
+            {
+                assemblyLoader.Loaded = true;
+            }
         }
 
         private static void ShowCurProgressValue(int value)
@@ -330,7 +345,7 @@ namespace AssetStudioCLI
                     }
 
                     isExportable = CLIOptions.o_exportAssetTypes.Value.Contains(asset.type);
-                    if (isExportable || (CLIOptions.f_loadAllAssets.Value && CLIOptions.o_exportAssetTypes.Value == CLIOptions.o_exportAssetTypes.DefaultValue))
+                    if (isExportable || CLIOptions.f_loadAllAssets.Value)
                     {
                         fileAssetsList.Add(assetItem);
                     }
@@ -1368,7 +1383,10 @@ namespace AssetStudioCLI
         public static void Clear()
         {
             assetsManager.Clear();
+            parsedAssetsList.Clear();
             assemblyLoader.Clear();
+            Exporter.ClearHash();
+            ParallelExporter.ClearHash();
         }
     }
 }

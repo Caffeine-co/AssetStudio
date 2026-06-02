@@ -11,10 +11,19 @@ namespace AssetStudio
         {
             public override float Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
-                return JsonSerializer.Deserialize<float>(ref reader, new JsonSerializerOptions
+                if (reader.TokenType == JsonTokenType.String)
                 {
-                    NumberHandling = options.NumberHandling
-                });
+                    var text = reader.GetString();
+                    return text switch
+                    {
+                        "NaN" => float.NaN,
+                        "Infinity" => float.PositiveInfinity,
+                        "-Infinity" => float.NegativeInfinity,
+                        _ when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) => parsed,
+                        _ => throw new JsonException("Expected float string value."),
+                    };
+                }
+                return reader.GetSingle();
             }
 
             public override void Write(Utf8JsonWriter writer, float value, JsonSerializerOptions options)
@@ -27,7 +36,7 @@ namespace AssetStudio
                     }
                     else
                     {
-                        writer.WriteStringValue(JsonSerializer.Serialize(value));
+                        throw new JsonException("Named floating point literals are not enabled.");
                     }
                 }
                 else

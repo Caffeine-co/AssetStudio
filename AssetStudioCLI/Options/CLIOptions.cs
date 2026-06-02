@@ -615,6 +615,11 @@ namespace AssetStudioCLI.Options
             #endregion
         }
 
+        public static void Reset()
+        {
+            InitOptions();
+        }
+
         public static void ParseArgs(string[] args)
         {
             cliArgs = args;

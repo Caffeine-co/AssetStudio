@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Runtime.CompilerServices;
 using AssetStudio.CustomOptions;
 using AssetStudio.CustomOptions.Asmo;
 using static AssetStudio.ImportHelper;
@@ -734,12 +735,12 @@ namespace AssetStudio
                                 obj = new TextAsset(objectReader);
                                 break;
                             case ClassIDType.Texture2D:
-                                obj = objectReader.serializedType?.m_Type != null && LoadViaTypeTree
+                                obj = objectReader.serializedType?.m_Type != null && LoadViaTypeTree && RuntimeFeature.IsDynamicCodeSupported
                                     ? new Texture2D(objectReader, TypeTreeHelper.ReadTypeByteArray(objectReader.serializedType.m_Type, objectReader), jsonOptions)
                                     : new Texture2D(objectReader);
                                 break;
                             case ClassIDType.Texture2DArray:
-                                obj = objectReader.serializedType?.m_Type != null && LoadViaTypeTree
+                                obj = objectReader.serializedType?.m_Type != null && LoadViaTypeTree && RuntimeFeature.IsDynamicCodeSupported
                                     ? new Texture2DArray(objectReader, TypeTreeHelper.ReadTypeByteArray(objectReader.serializedType.m_Type, objectReader), jsonOptions)
                                     : new Texture2DArray(objectReader);
                                 break;

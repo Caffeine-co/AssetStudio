@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace AssetStudio
@@ -72,6 +73,8 @@ namespace AssetStudio
 
         public Material() { }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
         public Material(ObjectReader reader, byte[] type, JsonSerializerOptions jsonOptions) : base(reader)
         {
             var parsedMaterial = JsonSerializer.Deserialize<Material>(type, jsonOptions);

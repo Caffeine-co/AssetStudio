@@ -9,8 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AssetStudio.PInvoke\AssetStudio.PInvoke.csproj" />
-    <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" />
-  </ItemGroup>
+    <ProjectReference Include="..\AssetStudio.PInvoke\AssetStudio.PInvoke.csproj" Condition=" '$(PublishAot)' != 'true' " />
+    <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" Condition=" '$(PublishAot)' != 'true' " />
+    <ProjectReference Include="..\AssetStudio.PInvoke\AssetStudio.PInvoke.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+    <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+    </ItemGroup>
 
 </Project>

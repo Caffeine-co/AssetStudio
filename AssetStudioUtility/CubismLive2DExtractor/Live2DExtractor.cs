@@ -275,12 +275,24 @@ namespace CubismLive2DExtractor
                         return;
                 }
 
-                using (var image = texture2D.ConvertToImage(flip: true))
+                var saved = ImageSharpNativeAotGuard.Run(() =>
                 {
-                    using (var file = File.OpenWrite(savePath))
+                    using (var image = texture2D.ConvertToImage(flip: true))
                     {
-                        image.WriteToStream(file, ImageFormat.Png);
+                        if (image == null)
+                        {
+                            return false;
+                        }
+
+                        using (var file = File.OpenWrite(savePath))
+                        {
+                            image.WriteToStream(file, ImageFormat.Png);
+                        }
                     }
+                    return true;
+                });
+                if (saved)
+                {
                     textureBag.Add($"textures/{texture2D.m_Name}.png");
                 }
             });
@@ -414,7 +426,7 @@ namespace CubismLive2DExtractor
                 var expressionDict = ParseMonoBehaviour(monoBehaviour, CubismMonoBehaviourType.Expression, Assembly);
                 if (expressionDict == null)
                     continue;
-                
+
                 var expression = JsonConvert.DeserializeObject<CubismExpression3Json>(JsonConvert.SerializeObject(expressionDict));
 
                 expressions.Add(new JObject
@@ -495,7 +507,7 @@ namespace CubismLive2DExtractor
                 Name = "LipSync",
                 Ids = LipSyncParameters.ToArray()
             });
-            
+
             var model3 = new CubismModel3Json
             {
                 Version = 3,
@@ -524,7 +536,7 @@ namespace CubismLive2DExtractor
                 var fadeMotionDict = ParseMonoBehaviour(fadeMotionMono, CubismMonoBehaviourType.FadeMotion, Assembly);
                 if (fadeMotionDict == null)
                     continue;
-                
+
                 var fadeMotion = JsonConvert.DeserializeObject<CubismFadeMotionData>(JsonConvert.SerializeObject(fadeMotionDict));
                 if (fadeMotion.ParameterIds.Length == 0)
                     continue;
@@ -602,7 +614,7 @@ namespace CubismLive2DExtractor
                 }
                 else
                 {
-                    groupDict.Add(groupIndex, new List<CubismPose3Json.ControlNode> {poseNode});
+                    groupDict.Add(groupIndex, new List<CubismPose3Json.ControlNode> { poseNode });
                 }
             }
 
@@ -666,7 +678,7 @@ namespace CubismLive2DExtractor
             }
             cdiJson.Parts = parts.ToArray();
 
-            if (parts.Count == 0 && parameters.Count == 0) 
+            if (parts.Count == 0 && parameters.Count == 0)
                 return false;
 
             File.WriteAllText($"{destPath}{modelName}.cdi3.json", JsonConvert.SerializeObject(cdiJson, Formatting.Indented));

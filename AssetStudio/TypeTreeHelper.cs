@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -187,6 +188,8 @@ namespace AssetStudio
                 reader.AlignStream();
         }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy export compatibility only; NativeAOT FFI object reads use AssetStudioCliRunner's hand-written TypeTree JSON writer.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy export compatibility only; NativeAOT FFI object reads use AssetStudioCliRunner's hand-written TypeTree JSON writer.")]
         public static byte[] ReadTypeByteArray(TypeTree m_Types, ObjectReader reader)
         {
             var type = ReadType(m_Types, reader);

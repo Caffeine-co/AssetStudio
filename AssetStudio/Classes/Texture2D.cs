@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -55,6 +56,8 @@ namespace AssetStudio
             byteSize = (uint)(m_Width * m_Height) * 4;
         }
 
+        [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Legacy AssetStudio type-tree materialization path; NativeAOT FFI object reads use hand-written payload readers.")]
         public Texture2D(ObjectReader reader, byte[] type, JsonSerializerOptions jsonOptions) : base(reader)
         {
             var parsedTex2d = JsonSerializer.Deserialize<Texture2D>(type, jsonOptions);
