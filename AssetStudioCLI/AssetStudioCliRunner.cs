@@ -17,6 +17,7 @@ namespace AssetStudioCLI
     {
         private static Dictionary<long, AssetItem>? activePathIdIndex;
         private static Dictionary<long, int>? activePathIdPositionIndex;
+        private static List<AssetItem>? activeObjectList;
         private static readonly byte[] PayloadBundleMagic = Encoding.ASCII.GetBytes("HARUKI_ASSET_PAYLOAD_BUNDLE_V1");
 
         public static int ActiveObjectIndexCount => activePathIdIndex?.Count ?? 0;
@@ -258,7 +259,7 @@ namespace AssetStudioCLI
 
         private static AssetStudioInspectResult CreateInspectResult(Dictionary<string, long> phases)
         {
-            var assets = Studio.parsedAssetsList
+            var assets = (activeObjectList ?? Studio.parsedAssetsList)
                 .Select((asset, index) => ToAssetInfo(asset, index))
                 .ToArray();
 
@@ -276,9 +277,10 @@ namespace AssetStudioCLI
         {
             var byPathId = new Dictionary<long, AssetItem>();
             var byPathIdPosition = new Dictionary<long, int>();
-            for (var i = 0; i < Studio.parsedAssetsList.Count; i++)
+            var objects = BuildContextObjectList();
+            for (var i = 0; i < objects.Count; i++)
             {
-                var asset = Studio.parsedAssetsList[i];
+                var asset = objects[i];
                 if (byPathId.ContainsKey(asset.m_PathID))
                 {
                     continue;
@@ -288,14 +290,45 @@ namespace AssetStudioCLI
                 byPathIdPosition.Add(asset.m_PathID, i);
             }
 
+            activeObjectList = objects;
             activePathIdIndex = byPathId;
             activePathIdPositionIndex = byPathIdPosition;
         }
 
         private static void ClearActiveObjectIndex()
         {
+            activeObjectList = null;
             activePathIdIndex = null;
             activePathIdPositionIndex = null;
+        }
+
+        private static List<AssetItem> BuildContextObjectList()
+        {
+            var objects = new List<AssetItem>(Studio.parsedAssetsList.Count);
+            var nextSyntheticPathId = -1L;
+            foreach (var asset in Studio.parsedAssetsList)
+            {
+                objects.Add(asset);
+                if (asset.Asset is Texture2DArray textureArray)
+                {
+                    var textures = textureArray.TextureList.Count > 0
+                        ? textureArray.TextureList
+                        : Enumerable.Range(0, Math.Max(textureArray.m_Depth, 0))
+                            .Select(layer => new Texture2D(textureArray, layer))
+                            .ToList();
+                    foreach (var texture in textures)
+                    {
+                        var fakeItem = new AssetItem(texture)
+                        {
+                            Text = texture.m_Name,
+                            Container = asset.Container,
+                            m_PathID = nextSyntheticPathId--,
+                        };
+                        objects.Add(fakeItem);
+                    }
+                }
+            }
+            return objects;
         }
 
         private static AssetItem? FindActiveObject(long pathId)
@@ -305,7 +338,7 @@ namespace AssetStudioCLI
                 return indexed;
             }
 
-            return Studio.parsedAssetsList.FirstOrDefault(asset => asset.m_PathID == pathId);
+            return (activeObjectList ?? Studio.parsedAssetsList).FirstOrDefault(asset => asset.m_PathID == pathId);
         }
 
         private static int ActiveObjectIndexOf(AssetItem asset)
@@ -316,7 +349,7 @@ namespace AssetStudioCLI
                 return index;
             }
 
-            return Studio.parsedAssetsList.IndexOf(asset);
+            return (activeObjectList ?? Studio.parsedAssetsList).IndexOf(asset);
         }
 
         private static string PhaseName(string? value)
@@ -344,6 +377,7 @@ namespace AssetStudioCLI
                 Type = asset.TypeString,
                 TypeId = (int)asset.Type,
                 PathId = asset.m_PathID,
+                UniqueId = asset.UniqueID,
                 Size = asset.FullSize,
                 SourceFile = asset.SourceFile?.originalPath ?? asset.SourceFile?.fullName,
             };
@@ -1162,6 +1196,9 @@ namespace AssetStudioCLI
 
         [JsonPropertyName("path_id")]
         public long PathId { get; set; }
+
+        [JsonPropertyName("unique_id")]
+        public string? UniqueId { get; set; }
 
         [JsonPropertyName("size")]
         public long Size { get; set; }

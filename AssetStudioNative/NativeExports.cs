@@ -687,8 +687,23 @@ public static unsafe class NativeExports
         }
 
         return assets
-            .Where(asset => asset.Type != null && normalizedTypes.Contains(NormalizeAssetTypeName(asset.Type)))
+            .Where(asset => asset.Type != null && RequestedTypesMatchAsset(normalizedTypes, asset.Type))
             .ToArray();
+    }
+
+    private static bool RequestedTypesMatchAsset(IReadOnlySet<string> normalizedTypes, string assetType)
+    {
+        var normalizedAssetType = NormalizeAssetTypeName(assetType);
+        if (normalizedTypes.Contains(normalizedAssetType))
+        {
+            return normalizedAssetType != "texture2darray";
+        }
+
+        return normalizedAssetType switch
+        {
+            "texture2darrayimage" => normalizedTypes.Contains("texture2darray"),
+            _ => false,
+        };
     }
 
     private static string NormalizeAssetTypeName(string type)
@@ -697,6 +712,7 @@ public static unsafe class NativeExports
         {
             "tex2d" => "texture2d",
             "tex2darray" => "texture2darray",
+            "texture2darrayimage" => "texture2darrayimage",
             "monobehavior" => "monobehaviour",
             "monobehaviour" => "monobehaviour",
             "textasset" => "textasset",
