@@ -9,64 +9,59 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace AssetStudioCLI
 {
-    public static class AssetStudioCliRunner
+    public sealed class AssetStudioSession : IDisposable
     {
-        private static AssetStudioSession? activeSession;
-        private static Dictionary<long, AssetItem>? activePathIdIndex;
-        private static Dictionary<long, int>? activePathIdPositionIndex;
-        private static List<AssetItem>? activeObjectList;
         private static readonly byte[] PayloadBundleMagic = Encoding.ASCII.GetBytes("HARUKI_ASSET_PAYLOAD_BUNDLE_V1");
 
-        public static int ActiveObjectIndexCount => activeSession?.ObjectIndexCount ?? activePathIdIndex?.Count ?? 0;
+        private readonly Dictionary<long, AssetItem> pathIdIndex = new();
+        private readonly Dictionary<long, int> pathIdPositionIndex = new();
+        private readonly List<AssetItem> objectList = new();
+        private readonly CLILogger logger;
+        private bool disposed;
 
-        public static AssetStudioRunResult Run(string[] args, IReadOnlyCollection<long>? exactPathIds = null)
+        private AssetStudioSession(CLILogger logger, bool loaded, AssetStudioInspectResult inspectResult)
         {
-            var phases = new Dictionary<string, long>();
-            Measure(phases, "parse_args", () =>
-            {
-                CLIOptions.Reset();
-                CLIOptions.ParseArgs(args);
-            });
-            if (!CLIOptions.isParsed)
-            {
-                throw new InvalidOperationException("AssetStudio CLI arguments could not be parsed.");
-            }
-            return RunParsed(catchExceptions: false, exactPathIds, phases);
+            this.logger = logger;
+            Loaded = loaded;
+            InspectResult = inspectResult;
         }
 
-        public static AssetStudioInspectResult Inspect(AssetStudioInspectOptions options)
+        public bool Loaded { get; }
+
+        public AssetStudioInspectResult InspectResult { get; private set; }
+
+        public int ObjectIndexCount => pathIdIndex.Count;
+
+        public static AssetStudioSession Open(AssetStudioInspectOptions options)
         {
             var phases = new Dictionary<string, long>();
-            Measure(phases, "parse_args", () =>
-            {
-                CLIOptions.Reset();
-                CLIOptions.ParseArgs(options.ToCliArgs());
-            });
+            Measure(phases, "apply_options", () => ApplyInspectOptions(options));
             if (!CLIOptions.isParsed)
             {
-                throw new InvalidOperationException("AssetStudio inspect arguments could not be parsed.");
+                throw new InvalidOperationException("AssetStudio context arguments could not be parsed.");
             }
 
-            var cliLogger = new CLILogger();
-            Logger.Default = cliLogger;
+            var logger = new CLILogger();
+            Logger.Default = logger;
             Measure(phases, "prepare_run", Studio.PrepareForRun);
-            Measure(phases, "show_options", CLIOptions.ShowCurrentOptions);
 
             try
             {
                 if (!Measure(phases, "load_assets", Studio.LoadAssets))
                 {
-                    return new AssetStudioInspectResult
-                    {
-                        AssetsFileCount = 0,
-                        ExportableAssetCount = 0,
-                        Assets = Array.Empty<AssetStudioAssetInfo>(),
-                        PhaseMs = phases,
-                    };
+                    return new AssetStudioSession(
+                        logger,
+                        loaded: false,
+                        new AssetStudioInspectResult
+                        {
+                            AssetsFileCount = 0,
+                            ExportableAssetCount = 0,
+                            Assets = Array.Empty<AssetStudioAssetInfo>(),
+                            PhaseMs = phases,
+                        });
                 }
 
                 Measure(phases, "parse_assets", Studio.ParseAssets);
@@ -75,71 +70,155 @@ namespace AssetStudioCLI
                     Measure(phases, "filter", Studio.Filter);
                 }
 
-                return Measure(phases, "create_inspect_result", () => CreateInspectResult(phases));
+                var session = new AssetStudioSession(logger, loaded: true, new AssetStudioInspectResult());
+                Measure(phases, "build_object_index", session.BuildObjectIndex);
+                session.InspectResult = session.CreateInspectResult(phases);
+                return session;
             }
-            finally
+            catch
             {
-                Measure(phases, "clear", Studio.Clear);
-                cliLogger.LogToFile(LoggerEvent.Verbose, "---Inspect ended---");
+                Studio.Clear();
+                logger.LogToFile(LoggerEvent.Verbose, "---Context open failed---");
+                throw;
             }
         }
 
-        public static AssetStudioLoadedSession BeginSession(AssetStudioInspectOptions options)
+        private static void ApplyInspectOptions(AssetStudioInspectOptions options)
         {
-            activeSession?.Dispose();
-            activeSession = AssetStudioSession.Open(options);
-            return new AssetStudioLoadedSession
+            if (string.IsNullOrWhiteSpace(options.InputPath))
             {
-                Loaded = activeSession.Loaded,
-                InspectResult = activeSession.InspectResult,
+                throw new ArgumentException("input_path is required");
+            }
+
+            var inputPath = Path.GetFullPath(options.InputPath).Replace("\"", "");
+            if (!Directory.Exists(inputPath) && !File.Exists(inputPath))
+            {
+                throw new FileNotFoundException($"input_path does not exist: {inputPath}", inputPath);
+            }
+
+            CLIOptions.Reset();
+            CLIOptions.cliArgs = Array.Empty<string>();
+            CLIOptions.inputPathList.Add(inputPath);
+            CLIOptions.o_workMode.Value = WorkMode.Info;
+            CLIOptions.o_outputFolder.Value = string.IsNullOrWhiteSpace(options.OutputDir)
+                ? Path.Combine(Path.GetTempPath(), "assetstudio-inspect-" + Guid.NewGuid().ToString("N"))
+                : Path.GetFullPath(options.OutputDir);
+            CLIOptions.o_exportAssetList.Value = ExportListType.None;
+            CLIOptions.f_loadAllAssets.Value = options.LoadAllAssets;
+            CLIOptions.f_filterWithRegex.Value = options.FilterWithRegex;
+            CLIOptions.f_filterExcludeMode.Value = options.FilterExcludeMode;
+
+            if (!string.IsNullOrWhiteSpace(options.UnityVersion))
+            {
+                CLIOptions.o_unityVersion.Value = new UnityVersion(options.UnityVersion);
+            }
+
+            var assetTypes = ParseAssetTypes(options.AssetTypes, options.LoadAllAssets);
+            if (assetTypes.Count > 0)
+            {
+                CLIOptions.o_exportAssetTypes.Value = assetTypes;
+            }
+
+            ApplyFilters(options);
+            CLIOptions.isParsed = true;
+        }
+
+        private static List<ClassIDType> ParseAssetTypes(IReadOnlyCollection<string>? assetTypes, bool loadAllAssets)
+        {
+            if (assetTypes == null || assetTypes.Count == 0)
+            {
+                return new List<ClassIDType>(CLIOptions.o_exportAssetTypes.Value);
+            }
+
+            var parsed = new List<ClassIDType>();
+            foreach (var rawType in assetTypes)
+            {
+                if (string.IsNullOrWhiteSpace(rawType))
+                {
+                    continue;
+                }
+
+                foreach (var token in rawType.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var normalized = token.Trim();
+                    if (normalized.Equals("all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new List<ClassIDType>(CLIOptions.o_exportAssetTypes.DefaultValue);
+                    }
+
+                    if (TryParseAssetType(normalized, out var assetType))
+                    {
+                        parsed.Add(assetType);
+                        continue;
+                    }
+
+                    throw new ArgumentException($"unsupported asset type `{normalized}`");
+                }
+            }
+
+            return parsed.Count > 0 || loadAllAssets
+                ? parsed.Distinct().ToList()
+                : new List<ClassIDType>(CLIOptions.o_exportAssetTypes.Value);
+        }
+
+        private static bool TryParseAssetType(string value, out ClassIDType assetType)
+        {
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "tex2d":
+                    assetType = ClassIDType.Texture2D;
+                    return true;
+                case "tex2darray":
+                    assetType = ClassIDType.Texture2DArray;
+                    return true;
+                case "audio":
+                    assetType = ClassIDType.AudioClip;
+                    return true;
+                case "video":
+                    assetType = ClassIDType.VideoClip;
+                    return true;
+                case "textasset":
+                    assetType = ClassIDType.TextAsset;
+                    return true;
+                case "monobehaviour":
+                    assetType = ClassIDType.MonoBehaviour;
+                    return true;
+                default:
+                    return Enum.TryParse(value, ignoreCase: true, out assetType);
+            }
+        }
+
+        private static void ApplyFilters(AssetStudioInspectOptions options)
+        {
+            var hasName = !string.IsNullOrWhiteSpace(options.FilterByName);
+            var hasContainer = !string.IsNullOrWhiteSpace(options.FilterByContainer);
+            var hasPathIds = options.FilterByPathIds != null && options.FilterByPathIds.Count > 0;
+
+            if (hasName)
+            {
+                CLIOptions.o_filterByName.Value.Add(options.FilterByName!);
+            }
+            if (hasContainer)
+            {
+                CLIOptions.o_filterByContainer.Value.Add(options.FilterByContainer!);
+            }
+            if (hasPathIds)
+            {
+                CLIOptions.o_filterByPathID.Value.AddRange(options.FilterByPathIds!.Select(x => x.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            CLIOptions.filterBy = (hasName, hasContainer, hasPathIds) switch
+            {
+                (_, _, true) => FilterBy.PathID,
+                (true, true, _) => FilterBy.NameAndContainer,
+                (true, false, _) => FilterBy.Name,
+                (false, true, _) => FilterBy.Container,
+                _ => FilterBy.None,
             };
-        }
-
-        public static AssetStudioRunResult ExportSession(string[] args, IReadOnlyCollection<long>? exactPathIds = null)
-        {
-            var phases = new Dictionary<string, long>();
-            var metrics = new Dictionary<string, long>();
-            Measure(phases, "parse_args", () =>
-            {
-                CLIOptions.Reset();
-                CLIOptions.ParseArgs(args);
-            });
-            if (!CLIOptions.isParsed)
-            {
-                throw new InvalidOperationException("AssetStudio context export arguments could not be parsed.");
-            }
-
-            Measure(phases, "show_options", CLIOptions.ShowCurrentOptions);
-            Measure(phases, "exact_path_filter", () => ApplyExactPathIdFilter(exactPathIds));
-            if (CLIOptions.o_exportAssetList.Value != ExportListType.None)
-            {
-                Measure(phases, "export_asset_list", Studio.ExportAssetList);
-            }
-            ExportCurrentMode(phases, metrics);
-            return new AssetStudioRunResult { PhaseMs = phases, Metrics = metrics };
-        }
-
-        public static AssetStudioObjectReadResult ReadObject(AssetStudioObjectReadOptions options)
-        {
-            return activeSession?.ReadObject(options)
-                ?? throw new InvalidOperationException("there is no active AssetStudio session");
-        }
-
-        public static void EndSession()
-        {
-            activeSession?.Dispose();
-            activeSession = null;
-            ClearActiveObjectIndex();
-            Logger.Default = new DummyLogger();
-            Progress.Reset();
-            Progress.Reset(index: 1);
         }
 
         public static void ResetProcessLocalState()
         {
-            activeSession?.Dispose();
-            activeSession = null;
-            ClearActiveObjectIndex();
             Studio.Clear();
             CLIOptions.Reset();
             Logger.Default = new DummyLogger();
@@ -147,55 +226,101 @@ namespace AssetStudioCLI
             Progress.Reset(index: 1);
         }
 
-        internal static AssetStudioRunResult RunParsed(
-            bool catchExceptions,
-            IReadOnlyCollection<long>? exactPathIds = null,
-            Dictionary<string, long>? phases = null,
-            Dictionary<string, long>? metrics = null)
+        public AssetStudioObjectReadResult ReadObject(AssetStudioObjectReadOptions options)
         {
-            phases ??= new Dictionary<string, long>();
-            metrics ??= new Dictionary<string, long>();
-            var cliLogger = new CLILogger();
-            Logger.Default = cliLogger;
-            Measure(phases, "prepare_run", Studio.PrepareForRun);
-            Measure(phases, "show_options", CLIOptions.ShowCurrentOptions);
+            ThrowIfDisposed();
+            var phases = new Dictionary<string, long>();
+            var item = Measure(phases, "find_object", () => FindObject(options.PathId));
+            if (item == null)
+            {
+                throw new InvalidOperationException($"asset path_id {options.PathId} was not found in the active context");
+            }
 
-            try
+            var payloadStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var payload = ReadObjectPayload(item, options);
+            var payloadElapsedMs = payloadStopwatch.ElapsedMilliseconds;
+            phases["read_payload"] = payloadElapsedMs;
+            phases["read_payload.asset_type." + PhaseName(item.TypeString)] = payloadElapsedMs;
+            phases["read_payload.payload_kind." + PhaseName(payload.PayloadKind)] = payloadElapsedMs;
+            foreach (var phase in payload.PhaseMs)
             {
-                if (CLIOptions.o_workMode.Value == WorkMode.Extract)
-                {
-                    Measure(phases, "extract_bundles", Studio.ExtractBundles);
-                }
-                else if (Measure(phases, "load_assets", Studio.LoadAssets))
-                {
-                    Measure(phases, "parse_assets", Studio.ParseAssets);
-                    if (CLIOptions.filterBy != FilterBy.None)
-                    {
-                        Measure(phases, "filter", Studio.Filter);
-                    }
-                    Measure(phases, "exact_path_filter", () => ApplyExactPathIdFilter(exactPathIds));
-                    if (CLIOptions.o_exportAssetList.Value != ExportListType.None)
-                    {
-                        Measure(phases, "export_asset_list", Studio.ExportAssetList);
-                    }
-                    ExportCurrentMode(phases, metrics);
-                }
+                AddPhase(phases, "read_payload.detail." + phase.Key, phase.Value);
             }
-            catch (Exception ex) when (catchExceptions)
+
+            return new AssetStudioObjectReadResult
             {
-                Logger.Error(ex.ToString());
-            }
-            finally
-            {
-                Measure(phases, "clear", Studio.Clear);
-                cliLogger.LogToFile(LoggerEvent.Verbose, "---Program ended---");
-            }
-            return new AssetStudioRunResult { PhaseMs = phases, Metrics = metrics };
+                Asset = ToAssetInfo(item),
+                Payload = payload.Payload,
+                PayloadKind = payload.PayloadKind,
+                SuggestedExtension = payload.SuggestedExtension,
+                PhaseMs = phases,
+            };
         }
 
-        private static AssetStudioInspectResult CreateInspectResult(Dictionary<string, long> phases)
+        public void Dispose()
         {
-            var assets = (activeObjectList ?? Studio.parsedAssetsList)
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            pathIdIndex.Clear();
+            pathIdPositionIndex.Clear();
+            objectList.Clear();
+            Studio.Clear();
+            Logger.Default = new DummyLogger();
+            Progress.Reset();
+            Progress.Reset(index: 1);
+            logger.LogToFile(LoggerEvent.Verbose, "---Context ended---");
+        }
+
+        private void BuildObjectIndex()
+        {
+            objectList.Clear();
+            pathIdIndex.Clear();
+            pathIdPositionIndex.Clear();
+
+            var nextSyntheticPathId = -1L;
+            foreach (var asset in Studio.parsedAssetsList)
+            {
+                AddObject(asset);
+                if (asset.Asset is Texture2DArray textureArray)
+                {
+                    var textures = textureArray.TextureList.Count > 0
+                        ? textureArray.TextureList
+                        : Enumerable.Range(0, Math.Max(textureArray.m_Depth, 0))
+                            .Select(layer => new Texture2D(textureArray, layer))
+                            .ToList();
+                    foreach (var texture in textures)
+                    {
+                        AddObject(new AssetItem(texture)
+                        {
+                            Text = texture.m_Name,
+                            Container = asset.Container,
+                            m_PathID = nextSyntheticPathId--,
+                        });
+                    }
+                }
+            }
+        }
+
+        private void AddObject(AssetItem asset)
+        {
+            var index = objectList.Count;
+            objectList.Add(asset);
+            if (pathIdIndex.ContainsKey(asset.m_PathID))
+            {
+                return;
+            }
+
+            pathIdIndex.Add(asset.m_PathID, asset);
+            pathIdPositionIndex.Add(asset.m_PathID, index);
+        }
+
+        private AssetStudioInspectResult CreateInspectResult(Dictionary<string, long> phases)
+        {
+            var assets = objectList
                 .Select((asset, index) => ToAssetInfo(asset, index))
                 .ToArray();
 
@@ -209,105 +334,25 @@ namespace AssetStudioCLI
             };
         }
 
-        private static void BuildActiveObjectIndex()
+        private AssetItem? FindObject(long pathId)
         {
-            var byPathId = new Dictionary<long, AssetItem>();
-            var byPathIdPosition = new Dictionary<long, int>();
-            var objects = BuildContextObjectList();
-            for (var i = 0; i < objects.Count; i++)
-            {
-                var asset = objects[i];
-                if (byPathId.ContainsKey(asset.m_PathID))
-                {
-                    continue;
-                }
-
-                byPathId.Add(asset.m_PathID, asset);
-                byPathIdPosition.Add(asset.m_PathID, i);
-            }
-
-            activeObjectList = objects;
-            activePathIdIndex = byPathId;
-            activePathIdPositionIndex = byPathIdPosition;
+            return pathIdIndex.TryGetValue(pathId, out var indexed)
+                ? indexed
+                : objectList.FirstOrDefault(asset => asset.m_PathID == pathId);
         }
 
-        private static void ClearActiveObjectIndex()
+        private int ObjectIndexOf(AssetItem asset)
         {
-            activeObjectList = null;
-            activePathIdIndex = null;
-            activePathIdPositionIndex = null;
+            return pathIdPositionIndex.TryGetValue(asset.m_PathID, out var index)
+                ? index
+                : objectList.IndexOf(asset);
         }
 
-        private static List<AssetItem> BuildContextObjectList()
-        {
-            var objects = new List<AssetItem>(Studio.parsedAssetsList.Count);
-            var nextSyntheticPathId = -1L;
-            foreach (var asset in Studio.parsedAssetsList)
-            {
-                objects.Add(asset);
-                if (asset.Asset is Texture2DArray textureArray)
-                {
-                    var textures = textureArray.TextureList.Count > 0
-                        ? textureArray.TextureList
-                        : Enumerable.Range(0, Math.Max(textureArray.m_Depth, 0))
-                            .Select(layer => new Texture2D(textureArray, layer))
-                            .ToList();
-                    foreach (var texture in textures)
-                    {
-                        var fakeItem = new AssetItem(texture)
-                        {
-                            Text = texture.m_Name,
-                            Container = asset.Container,
-                            m_PathID = nextSyntheticPathId--,
-                        };
-                        objects.Add(fakeItem);
-                    }
-                }
-            }
-            return objects;
-        }
-
-        private static AssetItem? FindActiveObject(long pathId)
-        {
-            if (activePathIdIndex != null && activePathIdIndex.TryGetValue(pathId, out var indexed))
-            {
-                return indexed;
-            }
-
-            return (activeObjectList ?? Studio.parsedAssetsList).FirstOrDefault(asset => asset.m_PathID == pathId);
-        }
-
-        private static int ActiveObjectIndexOf(AssetItem asset)
-        {
-            if (activePathIdPositionIndex != null &&
-                activePathIdPositionIndex.TryGetValue(asset.m_PathID, out var index))
-            {
-                return index;
-            }
-
-            return (activeObjectList ?? Studio.parsedAssetsList).IndexOf(asset);
-        }
-
-        private static string PhaseName(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return "unknown";
-            }
-
-            var builder = new StringBuilder(value.Length);
-            foreach (var ch in value)
-            {
-                builder.Append(char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '_');
-            }
-            return builder.ToString();
-        }
-
-        private static AssetStudioAssetInfo ToAssetInfo(AssetItem asset, int? index = null)
+        private AssetStudioAssetInfo ToAssetInfo(AssetItem asset, int? index = null)
         {
             return new AssetStudioAssetInfo
             {
-                Index = index ?? ActiveObjectIndexOf(asset),
+                Index = index ?? ObjectIndexOf(asset),
                 Name = asset.Text,
                 Container = asset.Container,
                 Type = asset.TypeString,
@@ -928,35 +973,19 @@ namespace AssetStudioCLI
             };
         }
 
-        private static void ExportCurrentMode(Dictionary<string, long> phases, Dictionary<string, long> metrics)
+        private static string PhaseName(string? value)
         {
-            switch (CLIOptions.o_workMode.Value)
+            if (string.IsNullOrWhiteSpace(value))
             {
-                case WorkMode.Info:
-                    Measure(phases, "show_exportable_assets_info", Studio.ShowExportableAssetsInfo);
-                    break;
-                case WorkMode.Live2D:
-                    Measure(phases, "export_live2d", Studio.ExportLive2D);
-                    break;
-                case WorkMode.SplitObjects:
-                    Measure(phases, "export_split_objects", Studio.ExportSplitObjects);
-                    break;
-                case WorkMode.Animator:
-                    Measure(phases, "export_animator", Studio.ExportAnimator);
-                    break;
-                default:
-                    ParallelExporter.ResetDiagnostics();
-                    Measure(phases, "export_assets", Studio.ExportAssets);
-                    foreach (var phase in ParallelExporter.SnapshotTimingMs())
-                    {
-                        AddPhase(phases, phase.Key, phase.Value);
-                    }
-                    foreach (var metric in ParallelExporter.SnapshotMetrics())
-                    {
-                        AddPhase(metrics, metric.Key, metric.Value);
-                    }
-                    break;
+                return "unknown";
             }
+
+            var builder = new StringBuilder(value.Length);
+            foreach (var ch in value)
+            {
+                builder.Append(char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '_');
+            }
+            return builder.ToString();
         }
 
         private static void Measure(Dictionary<string, long> phases, string name, Action action)
@@ -981,165 +1010,12 @@ namespace AssetStudioCLI
                 : elapsedMs;
         }
 
-        private static void ApplyExactPathIdFilter(IReadOnlyCollection<long>? exactPathIds)
+        private void ThrowIfDisposed()
         {
-            if (exactPathIds == null || exactPathIds.Count == 0)
+            if (disposed)
             {
-                return;
+                throw new ObjectDisposedException(nameof(AssetStudioSession));
             }
-
-            var pathIdSet = exactPathIds.ToHashSet();
-            Studio.parsedAssetsList = Studio.parsedAssetsList
-                .Where(asset => pathIdSet.Contains(asset.m_PathID))
-                .ToList();
         }
-    }
-
-    public sealed class AssetStudioLoadedSession
-    {
-        public bool Loaded { get; set; }
-        public AssetStudioInspectResult InspectResult { get; set; } = new AssetStudioInspectResult();
-    }
-
-    public sealed class AssetStudioRunResult
-    {
-        public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-        public IReadOnlyDictionary<string, long> Metrics { get; set; } = new Dictionary<string, long>();
-    }
-
-    public sealed class AssetStudioObjectReadOptions
-    {
-        public long PathId { get; set; }
-        public string Kind { get; set; } = "auto";
-        public string ImageFormat { get; set; } = "bmp";
-    }
-
-    public sealed class AssetStudioObjectReadResult
-    {
-        public AssetStudioAssetInfo Asset { get; set; } = new AssetStudioAssetInfo();
-        public byte[] Payload { get; set; } = Array.Empty<byte>();
-        public string PayloadKind { get; set; } = "";
-        public string SuggestedExtension { get; set; } = "";
-        public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-    }
-
-    internal sealed class AssetStudioObjectPayload
-    {
-        public byte[] Payload { get; set; } = Array.Empty<byte>();
-        public string PayloadKind { get; set; } = "";
-        public string SuggestedExtension { get; set; } = "";
-        public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-    }
-
-    public sealed class AssetStudioInspectOptions
-    {
-        public string InputPath { get; set; } = "";
-        public IReadOnlyCollection<string>? AssetTypes { get; set; }
-        public string? UnityVersion { get; set; }
-        public bool FilterExcludeMode { get; set; }
-        public bool FilterWithRegex { get; set; }
-        public string? FilterByName { get; set; }
-        public string? FilterByContainer { get; set; }
-        public IReadOnlyCollection<long>? FilterByPathIds { get; set; }
-        public bool LoadAllAssets { get; set; }
-        public string? OutputDir { get; set; }
-
-        public string[] ToCliArgs()
-        {
-            if (string.IsNullOrWhiteSpace(InputPath))
-            {
-                throw new ArgumentException("input_path is required");
-            }
-
-            var args = new List<string>
-            {
-                InputPath,
-                "-m",
-                "info",
-                "-o",
-                string.IsNullOrWhiteSpace(OutputDir)
-                    ? Path.Combine(Path.GetTempPath(), "assetstudio-inspect-" + Guid.NewGuid().ToString("N"))
-                    : OutputDir,
-            };
-
-            if (AssetTypes != null && AssetTypes.Count > 0)
-            {
-                args.Add("-t");
-                args.Add(string.Join(",", AssetTypes));
-            }
-            if (!string.IsNullOrWhiteSpace(UnityVersion))
-            {
-                args.Add("--unity-version");
-                args.Add(UnityVersion);
-            }
-            if (FilterExcludeMode)
-            {
-                args.Add("--filter-exclude-mode");
-            }
-            if (FilterWithRegex)
-            {
-                args.Add("--filter-with-regex");
-            }
-            if (!string.IsNullOrWhiteSpace(FilterByName))
-            {
-                args.Add("--filter-by-name");
-                args.Add(FilterByName);
-            }
-            if (!string.IsNullOrWhiteSpace(FilterByContainer))
-            {
-                args.Add("--filter-by-container");
-                args.Add(FilterByContainer);
-            }
-            if (FilterByPathIds != null && FilterByPathIds.Count > 0)
-            {
-                args.Add("--filter-by-pathid");
-                args.Add(string.Join(",", FilterByPathIds));
-            }
-            if (LoadAllAssets)
-            {
-                args.Add("--load-all");
-            }
-
-            return args.ToArray();
-        }
-    }
-
-    public sealed class AssetStudioInspectResult
-    {
-        public int AssetsFileCount { get; set; }
-        public int ExportableAssetCount { get; set; }
-        public string? UnityVersion { get; set; }
-        public IReadOnlyCollection<AssetStudioAssetInfo> Assets { get; set; } = Array.Empty<AssetStudioAssetInfo>();
-        public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-    }
-
-    public sealed class AssetStudioAssetInfo
-    {
-        [JsonPropertyName("index")]
-        public int Index { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("container")]
-        public string? Container { get; set; }
-
-        [JsonPropertyName("type")]
-        public string? Type { get; set; }
-
-        [JsonPropertyName("type_id")]
-        public int TypeId { get; set; }
-
-        [JsonPropertyName("path_id")]
-        public long PathId { get; set; }
-
-        [JsonPropertyName("unique_id")]
-        public string? UniqueId { get; set; }
-
-        [JsonPropertyName("size")]
-        public long Size { get; set; }
-
-        [JsonPropertyName("source_file")]
-        public string? SourceFile { get; set; }
     }
 }

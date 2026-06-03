@@ -29,7 +29,7 @@ public static unsafe class NativeExports
     private const ushort PayloadBundleHeaderLength = 20;
     private static long NextContextId;
     private static long NextReadObjectsCallSeq;
-    private static ActiveNativeContext? ActiveContext;
+    private static readonly Dictionary<long, ActiveNativeContext> Sessions = new();
 
     static NativeExports()
     {
@@ -59,7 +59,7 @@ public static unsafe class NativeExports
             {
                 Success = true,
                 AdapterVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
-                AssetStudioCliVersion = typeof(AssetStudioCliRunner).Assembly.GetName().Version?.ToString(),
+                AssetStudioCliVersion = typeof(AssetStudioSession).Assembly.GetName().Version?.ToString(),
             };
             *responseJson = AllocateJson(response);
             return 0;
@@ -67,6 +67,54 @@ public static unsafe class NativeExports
         catch (Exception ex)
         {
             *responseJson = AllocateJson(VersionResponse.Fail(ex.ToString()));
+            return 100;
+        }
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_capabilities", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int Capabilities(byte** responseJson)
+    {
+        if (responseJson == null)
+        {
+            return 1;
+        }
+        *responseJson = null;
+
+        try
+        {
+            *responseJson = AllocateJson(new CapabilitiesResponse
+            {
+                Success = true,
+                FfiMode = "core",
+                AbiVersion = 1,
+                PayloadBundleVersion = PayloadBundleVersion,
+                MaxActiveContexts = 1,
+                SupportsMultipleContexts = false,
+                ObjectKinds = new[]
+                {
+                    "auto",
+                    "image",
+                    "image_archive",
+                    "audio",
+                    "raw",
+                    "video",
+                    "font",
+                    "shader",
+                    "text",
+                    "text_bytes",
+                    "typetree_json",
+                    "mesh",
+                    "obj",
+                    "animator",
+                    "fbx",
+                },
+                ImageFormats = new[] { "bmp", "png" },
+            });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            *responseJson = AllocateJson(CapabilitiesResponse.Fail(ex.ToString()));
             return 100;
         }
     }
@@ -111,7 +159,8 @@ public static unsafe class NativeExports
             {
                 Diagnostics.Event(operationId, "acquired_operation_gate");
                 using var console = ConsoleCapture.Start(Diagnostics.CaptureConsole);
-                result = AssetStudioCliRunner.Inspect(request.ToInspectOptions());
+                using var session = AssetStudioSession.Open(request.ToInspectOptions());
+                result = session.InspectResult;
                 Diagnostics.Console(operationId, console.StandardOutput, console.StandardError);
             }
             catch (Exception ex)
@@ -194,17 +243,17 @@ public static unsafe class NativeExports
             OperationGate.Wait();
             gateAcquired = true;
 
-            if (ActiveContext != null)
+            if (Sessions.Count > 0)
             {
-                throw new InvalidOperationException($"native context {ActiveContext.ContextId} is already active");
+                throw new InvalidOperationException($"native context {Sessions.Keys.First()} is already active");
             }
 
-            AssetStudioLoadedSession session;
+            AssetStudioSession session;
             try
             {
                 Diagnostics.Event(operationId, "acquired_operation_gate");
                 using var console = ConsoleCapture.Start(Diagnostics.CaptureConsole);
-                session = AssetStudioCliRunner.BeginSession(request.ToInspectOptions());
+                session = AssetStudioSession.Open(request.ToInspectOptions());
                 Diagnostics.Console(operationId, console.StandardOutput, console.StandardError);
             }
             catch (Exception ex)
@@ -215,9 +264,9 @@ public static unsafe class NativeExports
 
             var contextId = Interlocked.Increment(ref NextContextId);
             var result = session.InspectResult;
-            var objectIndexCount = AssetStudioCliRunner.ActiveObjectIndexCount;
+            var objectIndexCount = session.ObjectIndexCount;
             var responseAssets = FilterAssetsForResponse(result.Assets, request.AssetTypes);
-            ActiveContext = new ActiveNativeContext(contextId, operationId, request.InputPath, stopwatch, responseAssets);
+            Sessions.Add(contextId, new ActiveNativeContext(contextId, operationId, request.InputPath, stopwatch, responseAssets, session));
 
             *responseJson = AllocateJson(new ContextOpenResponse
             {
@@ -243,7 +292,7 @@ public static unsafe class NativeExports
             Diagnostics.Exception("context_open", ex);
             if (gateAcquired)
             {
-                ActiveContext = null;
+                CloseAllSessions();
                 ResetProcessLocalState();
                 OperationGate.Release();
             }
@@ -284,20 +333,20 @@ public static unsafe class NativeExports
                 return 2;
             }
 
-            if (ActiveContext == null || ActiveContext.ContextId != request.ContextId)
+            if (!Sessions.TryGetValue(request.ContextId, out var context))
             {
                 *responseJson = AllocateJson(ContextCloseResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds));
                 return 4;
             }
 
-            var operationId = ActiveContext.OperationId;
+            var operationId = context.OperationId;
             try
             {
-                AssetStudioCliRunner.EndSession();
+                context.Session.Dispose();
             }
             finally
             {
-                ActiveContext = null;
+                Sessions.Remove(request.ContextId);
                 OperationGate.Release();
             }
             Diagnostics.Event(operationId, "context_closed", $"duration_ms={stopwatch.ElapsedMilliseconds}");
@@ -349,21 +398,21 @@ public static unsafe class NativeExports
                 return 2;
             }
 
-            if (ActiveContext == null || ActiveContext.ContextId != request.ContextId)
+            if (!Sessions.TryGetValue(request.ContextId, out var context))
             {
                 *responseJson = AllocateJson(ContextListObjectsResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds));
                 return 4;
             }
 
             var offset = Math.Max(0, request.Offset);
-            var limit = request.Limit <= 0 ? ActiveContext.Assets.Count : request.Limit;
-            var page = ActiveContext.Assets.Skip(offset).Take(limit).ToArray();
+            var limit = request.Limit <= 0 ? context.Assets.Count : request.Limit;
+            var page = context.Assets.Skip(offset).Take(limit).ToArray();
             var nextOffset = offset + page.Length;
-            var hasMore = nextOffset < ActiveContext.Assets.Count;
+            var hasMore = nextOffset < context.Assets.Count;
             Diagnostics.Event(
-                ActiveContext.OperationId,
+                context.OperationId,
                 "context_list_objects",
-                $"offset={offset} limit={limit} returned={page.Length}/{ActiveContext.Assets.Count}");
+                $"offset={offset} limit={limit} returned={page.Length}/{context.Assets.Count}");
 
             *responseJson = AllocateJson(new ContextListObjectsResponse
             {
@@ -372,9 +421,9 @@ public static unsafe class NativeExports
                 Offset = offset,
                 Limit = limit,
                 NextOffset = hasMore ? nextOffset : null,
-                TotalCount = ActiveContext.Assets.Count,
+                TotalCount = context.Assets.Count,
                 Assets = page,
-                Warnings = Diagnostics.ResponseWarnings(ActiveContext.OperationId),
+                Warnings = Diagnostics.ResponseWarnings(context.OperationId),
                 DurationMs = stopwatch.ElapsedMilliseconds,
             });
             return 0;
@@ -435,19 +484,19 @@ public static unsafe class NativeExports
                 *responseJson = AllocateJson(ObjectReadResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds));
                 return 2;
             }
-            if (ActiveContext == null || ActiveContext.ContextId != request.ContextId)
+            if (!Sessions.TryGetValue(request.ContextId, out var context))
             {
                 *responseJson = AllocateJson(ObjectReadResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds));
                 return 4;
             }
 
-            var operationId = ActiveContext.OperationId;
+            var operationId = context.OperationId;
             AssetStudioObjectReadResult result;
             try
             {
                 Diagnostics.Event(operationId, "context_read_object", $"path_id={request.PathId} kind={request.Kind}");
                 using var console = ConsoleCapture.Start(Diagnostics.CaptureConsole);
-                result = AssetStudioCliRunner.ReadObject(request.ToReadOptions());
+                result = context.Session.ReadObject(request.ToReadOptions());
                 Diagnostics.Console(operationId, console.StandardOutput, console.StandardError);
             }
             catch (Exception ex)
@@ -500,6 +549,7 @@ public static unsafe class NativeExports
         var stopwatch = Stopwatch.StartNew();
         var phaseMs = new Dictionary<string, long>(StringComparer.Ordinal);
         long callSeq = 0;
+        long requestedContextId = 0;
         try
         {
             if (requestJson == null)
@@ -523,13 +573,14 @@ public static unsafe class NativeExports
                 *responseJson = AllocateJson(ObjectReadBatchResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds));
                 return 2;
             }
-            if (ActiveContext == null || ActiveContext.ContextId != request.ContextId)
+            requestedContextId = request.ContextId;
+            if (!Sessions.TryGetValue(request.ContextId, out var context))
             {
                 *responseJson = AllocateJson(ObjectReadBatchResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds));
                 return 4;
             }
 
-            var operationId = ActiveContext.OperationId;
+            var operationId = context.OperationId;
             callSeq = Interlocked.Increment(ref NextReadObjectsCallSeq);
             var reads = new List<ObjectReadResponse>(request.Objects.Count);
             var payloadEntries = new List<(string Name, byte[] Payload)>();
@@ -543,7 +594,7 @@ public static unsafe class NativeExports
                 {
                     try
                     {
-                        var result = AssetStudioCliRunner.ReadObject(item.ToReadOptions());
+                        var result = context.Session.ReadObject(item.ToReadOptions());
                         if (result.PhaseMs.TryGetValue("read_payload", out var itemReadPayloadMs))
                         {
                             readPayloadMs += itemReadPayloadMs;
@@ -604,7 +655,7 @@ public static unsafe class NativeExports
                 ReadPayloadMs = readPayloadMs,
                 WorkerId = WorkerId,
                 CallSeq = callSeq,
-                ObjectIndexCount = AssetStudioCliRunner.ActiveObjectIndexCount,
+                ObjectIndexCount = context.Session.ObjectIndexCount,
                 PhaseStats = BuildPhaseStats(phaseSamples),
                 DurationMs = stopwatch.ElapsedMilliseconds,
             });
@@ -618,7 +669,7 @@ public static unsafe class NativeExports
                 stopwatch.ElapsedMilliseconds,
                 WorkerId,
                 callSeq,
-                AssetStudioCliRunner.ActiveObjectIndexCount,
+                Sessions.TryGetValue(requestedContextId, out var failedContext) ? failedContext.Session.ObjectIndexCount : 0,
                 phaseMs));
             return 100;
         }
@@ -905,10 +956,19 @@ public static unsafe class NativeExports
 
     private static void ResetProcessLocalState()
     {
-        AssetStudioCliRunner.ResetProcessLocalState();
+        AssetStudioSession.ResetProcessLocalState();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
+    }
+
+    private static void CloseAllSessions()
+    {
+        foreach (var context in Sessions.Values.ToArray())
+        {
+            context.Session.Dispose();
+        }
+        Sessions.Clear();
     }
 
     private static string ShellQuote(string value)
@@ -1206,13 +1266,15 @@ internal sealed class ActiveNativeContext
         string operationId,
         string inputPath,
         Stopwatch stopwatch,
-        IReadOnlyCollection<AssetStudioAssetInfo> assets)
+        IReadOnlyCollection<AssetStudioAssetInfo> assets,
+        AssetStudioSession session)
     {
         ContextId = contextId;
         OperationId = operationId;
         InputPath = inputPath;
         Stopwatch = stopwatch;
         Assets = assets;
+        Session = session;
     }
 
     public long ContextId { get; }
@@ -1220,6 +1282,7 @@ internal sealed class ActiveNativeContext
     public string InputPath { get; }
     public Stopwatch Stopwatch { get; }
     public IReadOnlyCollection<AssetStudioAssetInfo> Assets { get; }
+    public AssetStudioSession Session { get; }
 }
 
 internal sealed class ContextCloseRequest
@@ -1666,6 +1729,42 @@ internal sealed class VersionResponse
     };
 }
 
+internal sealed class CapabilitiesResponse
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("ffi_mode")]
+    public string FfiMode { get; set; } = "core";
+
+    [JsonPropertyName("abi_version")]
+    public int AbiVersion { get; set; }
+
+    [JsonPropertyName("payload_bundle_version")]
+    public int PayloadBundleVersion { get; set; }
+
+    [JsonPropertyName("max_active_contexts")]
+    public int MaxActiveContexts { get; set; }
+
+    [JsonPropertyName("supports_multiple_contexts")]
+    public bool SupportsMultipleContexts { get; set; }
+
+    [JsonPropertyName("object_kinds")]
+    public IReadOnlyCollection<string> ObjectKinds { get; set; } = Array.Empty<string>();
+
+    [JsonPropertyName("image_formats")]
+    public IReadOnlyCollection<string> ImageFormats { get; set; } = Array.Empty<string>();
+
+    [JsonPropertyName("error")]
+    public string? Error { get; set; }
+
+    public static CapabilitiesResponse Fail(string error) => new()
+    {
+        Success = false,
+        Error = error,
+    };
+}
+
     [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(ContextCloseRequest))]
     [JsonSerializable(typeof(ContextListObjectsRequest))]
@@ -1681,6 +1780,7 @@ internal sealed class VersionResponse
 [JsonSerializable(typeof(InspectRequest))]
 [JsonSerializable(typeof(InspectResponse))]
 [JsonSerializable(typeof(VersionResponse))]
+[JsonSerializable(typeof(CapabilitiesResponse))]
 [JsonSerializable(typeof(Dictionary<string, long>))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
 [JsonSerializable(typeof(Dictionary<string, NativePhaseStats>))]
