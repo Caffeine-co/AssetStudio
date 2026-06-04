@@ -500,7 +500,7 @@ internal sealed class BenchOptions
             "..",
             "..",
             "..",
-            "AssetStudioNative",
+            "AssetStudioFFI",
             "bin",
             "Release",
             "net9.0",

@@ -32,7 +32,7 @@ def main():
         if "CLIOptions" in text:
             violations.append(f"{path.relative_to(REPO_ROOT)} directly references CLIOptions")
 
-    native_root = REPO_ROOT / "AssetStudioNative"
+    native_root = REPO_ROOT / "AssetStudioFFI"
     for path in iter_source_files(native_root):
         text = path.read_text(encoding="utf-8-sig")
         if "AssetStudioCLI" in text:

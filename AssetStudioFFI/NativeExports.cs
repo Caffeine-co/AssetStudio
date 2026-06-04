@@ -17,7 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Texture2DDecoder;
 
-namespace AssetStudioNative;
+namespace AssetStudioFFI;
 
 public static unsafe class NativeExports
 {

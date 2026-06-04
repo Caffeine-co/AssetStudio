@@ -344,4 +344,4 @@ healthchecksdb
 
 # Local desktop/build cache
 .DS_Store
-AssetStudioNative/rust/haruki-assetstudio/target/
+AssetStudioFFI/rust/haruki-assetstudio/target/

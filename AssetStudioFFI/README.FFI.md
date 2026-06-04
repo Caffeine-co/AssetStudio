@@ -260,10 +260,10 @@ Then for each entry:
 
 ## Rust SDK Crate
 
-The Rust wrapper lives in `AssetStudioNative/rust/haruki-assetstudio`. It loads the native library with `libloading`, validates typed ABI struct sizes through `haruki_assetstudio_abi_layout`, exposes capabilities, manages context close through RAII, lists and looks up objects through caller-owned table buffers, and reads objects by either path id or stable list index through direct retry v7. `ObjectReadResult` owns copied payload bytes plus per-item metadata (`payload_kind`, `suggested_extension`, offsets, lengths, and error fields), and `payload_for(item)` returns the item slice with bounds checks.
+The Rust wrapper lives in `AssetStudioFFI/rust/haruki-assetstudio`. It loads the native library with `libloading`, validates typed ABI struct sizes through `haruki_assetstudio_abi_layout`, exposes capabilities, manages context close through RAII, lists and looks up objects through caller-owned table buffers, and reads objects by either path id or stable list index through direct retry v7. `ObjectReadResult` owns copied payload bytes plus per-item metadata (`payload_kind`, `suggested_extension`, offsets, lengths, and error fields), and `payload_for(item)` returns the item slice with bounds checks.
 
 ```bash
-cargo run --manifest-path AssetStudioNative/rust/haruki-assetstudio/Cargo.toml \
+cargo run --manifest-path AssetStudioFFI/rust/haruki-assetstudio/Cargo.toml \
   --example smoke -- \
   /path/to/HarukiAssetStudioNative.dylib \
   /path/to/resources.assets
@@ -274,7 +274,7 @@ cargo run --manifest-path AssetStudioNative/rust/haruki-assetstudio/Cargo.toml \
 After publishing the NativeAOT library, run the Python contract smoke test against a real Unity asset file:
 
 ```bash
-python3 AssetStudioNative/tests/ffi_contract_smoke.py \
+python3 AssetStudioFFI/tests/ffi_contract_smoke.py \
   /path/to/HarukiAssetStudioNative.dylib \
   /path/to/resources.assets \
   --unity-version 2022.3.62f1
@@ -285,7 +285,7 @@ The smoke test verifies capabilities, stable error codes, lightweight open, page
 For list-path performance comparisons:
 
 ```bash
-python3 AssetStudioNative/tests/ffi_list_benchmark.py \
+python3 AssetStudioFFI/tests/ffi_list_benchmark.py \
   /path/to/HarukiAssetStudioNative.dylib \
   /path/to/resources.assets \
   --unity-version 2022.3.62f1 \

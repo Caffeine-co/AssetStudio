@@ -5,7 +5,7 @@ Small benchmark harness for comparing the NativeAOT FFI path with an optional CL
 Build or publish the native library first:
 
 ```bash
-dotnet publish ../AssetStudioNative/AssetStudioNative.csproj -c Release -r osx-arm64 -v:minimal
+dotnet publish ../AssetStudioFFI/AssetStudioFFI.csproj -c Release -r osx-arm64 -v:minimal
 ```
 
 Run FFI-only open/list timing:
