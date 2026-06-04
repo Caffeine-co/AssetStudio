@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net472;net8.0;net9.0</TargetFrameworks>
+        <AssemblyTitle>AssetStudio Core</AssemblyTitle>
+        <AssemblyName>AssetStudioCore</AssemblyName>
+        <Version>0.19.0.0</Version>
+        <Copyright>Copyright © Perfare; Copyright © aelurum 2023-2025</Copyright>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugType>embedded</DebugType>
+        <NoWarn>$(NoWarn);NU1902</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>AssetStudioModCLI</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    </ItemGroup>
+
+    <ItemGroup Condition=" '$(TargetFramework)' != 'net472' ">
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.8" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\AssetStudioUtility\AssetStudioUtility.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudioFBXWrapper\AssetStudioFBXWrapper.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" Condition=" '$(PublishAot)' != 'true' " />
+        <ProjectReference Include="..\AssetStudioUtility\AssetStudioUtility.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+        <ProjectReference Include="..\AssetStudioFBXWrapper\AssetStudioFBXWrapper.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+        <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" Condition=" '$(PublishAot)' == 'true' " />
+    </ItemGroup>
+
+</Project>

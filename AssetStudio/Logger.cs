@@ -2,12 +2,20 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace AssetStudio
 {
     public static class Logger
     {
-        public static ILogger Default = new DummyLogger();
+        private static readonly AsyncLocal<ILogger> CurrentLogger = new AsyncLocal<ILogger>();
+        private static readonly ILogger FallbackLogger = new DummyLogger();
+
+        public static ILogger Default
+        {
+            get => CurrentLogger.Value ?? FallbackLogger;
+            set => CurrentLogger.Value = value ?? throw new ArgumentNullException(nameof(value));
+        }
 
         public static void Verbose(string message) => Default.Log(LoggerEvent.Verbose, message);
         public static void Debug(string message) => Default.Log(LoggerEvent.Debug, message);

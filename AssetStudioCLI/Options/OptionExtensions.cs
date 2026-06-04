@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AssetStudioCLI.Options
+namespace AssetStudioCore.Options
 {
     internal static class OptionExtensions
     {

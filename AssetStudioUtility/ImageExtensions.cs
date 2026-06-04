@@ -15,7 +15,13 @@ namespace AssetStudio
         public static readonly object Sync = new object();
         public static readonly bool Enabled = !RuntimeFeature.IsDynamicCodeSupported
             || IsEnabled(Environment.GetEnvironmentVariable("HARUKI_ASSET_STUDIO_IMAGE_GUARD"));
-        public static Action<string, long> TimingSink { get; set; }
+        private static readonly AsyncLocal<Action<string, long>> CurrentTimingSink = new AsyncLocal<Action<string, long>>();
+
+        public static Action<string, long> TimingSink
+        {
+            get => CurrentTimingSink.Value;
+            set => CurrentTimingSink.Value = value;
+        }
 
         [ThreadStatic]
         private static int SyncDepth;

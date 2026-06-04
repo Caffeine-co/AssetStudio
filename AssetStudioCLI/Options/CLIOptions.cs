@@ -5,77 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace AssetStudioCLI.Options
+namespace AssetStudioCore.Options
 {
-    internal enum HelpGroups
-    {
-        General,
-        Convert,
-        Logger,
-        Live2D,
-        FBX,
-        Filter,
-        Advanced,
-    }
-
-    internal enum WorkMode
-    {
-        Extract,
-        Export,
-        ExportRaw,
-        Dump,
-        Info,
-        Live2D,
-        SplitObjects,
-        Animator,
-    }
-
-    internal enum AssetGroupOption
-    {
-        None,
-        TypeName,
-        ContainerPath,
-        ContainerPathFull,
-        SourceFileName,
-        SceneHierarchy,
-    }
-
-    internal enum FilenameFormat
-    {
-        AssetName,
-        AssetName_PathID,
-        PathID,
-    }
-
-    internal enum ExportListType
-    {
-        None,
-        XML,
-    }
-
-    internal enum AudioFormat
-    {
-        None,
-        Wav,
-    }
-
-    internal enum FilterBy
-    {
-        None,
-        Name,
-        Container,
-        PathID,
-        NameOrContainer,
-        NameAndContainer,
-    }
-
-    internal enum AnimationExportMode
-    {
-        Auto,
-        Skip,
-        All,
-    }
-
     internal static class CLIOptions
     {
         public static bool isParsed;
@@ -132,7 +63,6 @@ namespace AssetStudioCLI.Options
         public static Option<bool> f_avoidLoadingViaTypetree;
         public static Option<bool> f_rawByteArrayFromMono;
         public static Option<bool> f_loadAllAssets;
-
         static CLIOptions()
         {
             OptionExtensions.OptionGrouping = OptionGrouping;
@@ -597,6 +527,7 @@ namespace AssetStudioCLI.Options
                 isFlag: true
             );
             #endregion
+
         }
 
         public static void Reset()
@@ -1251,7 +1182,6 @@ namespace AssetStudioCLI.Options
                             if (Directory.Exists(value))
                             {
                                 o_assemblyPath.Value = value;
-                                Studio.assemblyLoader.Load(value);
                             }
                             else
                             {
@@ -1315,10 +1245,6 @@ namespace AssetStudioCLI.Options
             }
             #endregion
 
-            if (!Studio.assemblyLoader.Loaded)
-            {
-                Studio.assemblyLoader.Loaded = true;
-            }
             if (o_outputFolder.Value == o_outputFolder.DefaultValue)
             {
                 var defaultFolder = o_workMode.Value == WorkMode.Extract
@@ -1371,7 +1297,7 @@ namespace AssetStudioCLI.Options
             const int indent = 22;
             var helpMessage = new StringBuilder();
             var usage = new StringBuilder();
-            var appAssembly = typeof(Program).Assembly.GetName();
+            var appAssembly = typeof(CLIOptions).Assembly.GetName();
             usage.Append($"{"Usage:".Color(ColorConsole.BrightYellow)} {appAssembly.Name} <input path to asset file(s)/folder> ");
 
             var i = 0;

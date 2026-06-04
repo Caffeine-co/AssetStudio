@@ -27,15 +27,12 @@
 
     <ItemGroup>
         <ProjectReference Include="..\AssetStudio\AssetStudio.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" />
-        <ProjectReference Include="..\AssetStudioCLI\AssetStudioCLI.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" />
+        <ProjectReference Include="..\AssetStudioCore\AssetStudioCore.csproj" SetTargetFramework="TargetFramework=net9.0" GlobalPropertiesToRemove="PublishAot;PublishTrimmed;NativeLib;SelfContained" />
     </ItemGroup>
 
     <Target Name="CopyHarukiNativeAotRuntimeLibraries" AfterTargets="Publish">
-        <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'osx-arm64' Or '$(RuntimeIdentifier)' == 'osx-x64' ">
-            <HarukiRuntimeNativeLibrary Include="$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.dylib" Condition="Exists('$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.dylib')" />
-        </ItemGroup>
-        <ItemGroup Condition=" '$(RuntimeIdentifier)' == 'linux-x64' ">
-            <HarukiRuntimeNativeLibrary Include="$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.so" Condition="Exists('$(MSBuildThisFileDirectory)..\AssetStudioCLI\Libraries\$(RuntimeIdentifier)\libAssetStudioFBXNative.so')" />
+        <ItemGroup>
+            <HarukiRuntimeNativeLibrary Include="$(MSBuildThisFileDirectory)..\AssetStudioCore\Libraries\$(RuntimeIdentifier)\*.*" Condition="Exists('$(MSBuildThisFileDirectory)..\AssetStudioCore\Libraries\$(RuntimeIdentifier)')" />
         </ItemGroup>
         <Copy SourceFiles="@(HarukiRuntimeNativeLibrary)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition=" '@(HarukiRuntimeNativeLibrary)' != '' " />
     </Target>

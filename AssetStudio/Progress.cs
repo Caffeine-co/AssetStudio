@@ -1,36 +1,27 @@
 ﻿using System;
+using System.Threading;
 
 namespace AssetStudio
 {
     public static class Progress
     {
-        private static readonly int InstanceCount = 2;
-        private static readonly IProgress<int>[] Instances;
-        private static readonly int[] PreValues;
-
-        static Progress()
-        {
-            Instances = new IProgress<int>[InstanceCount];
-            for (var i = 0; i < InstanceCount; i++)
-            {
-                Instances[i] = new Progress<int>();
-            }
-
-            PreValues = new int[InstanceCount];
-        }
+        private const int InstanceCount = 2;
+        private static readonly AsyncLocal<State> CurrentState = new AsyncLocal<State>();
 
         public static int MaxCount => InstanceCount;
 
         public static IProgress<int> Default //alias
         {
-            get => Instances[0];
+            get => StateForCurrentFlow.Instances[0];
             set => SetInstance(0, value);
         }
 
         public static void Reset(int index = 0)
         {
-            PreValues[index] = 0;
-            Instances[index].Report(0);
+            ValidateIndex(index);
+            var state = StateForCurrentFlow;
+            state.PreValues[index] = 0;
+            state.Instances[index].Report(0);
         }
 
         public static void Report(int current, int total, int index = 0)
@@ -41,10 +32,12 @@ namespace AssetStudio
 
         private static void _Report(int value, int index)
         {
-            if (value > PreValues[index])
+            ValidateIndex(index);
+            var state = StateForCurrentFlow;
+            if (value > state.PreValues[index])
             {
-                PreValues[index] = value;
-                Instances[index].Report(value);
+                state.PreValues[index] = value;
+                state.Instances[index].Report(value);
             }
         }
 
@@ -52,10 +45,47 @@ namespace AssetStudio
         {
             if (progress == null)
                 throw new ArgumentNullException(nameof(progress));
+            ValidateIndex(index);
+
+            StateForCurrentFlow.Instances[index] = progress;
+        }
+
+        public static IProgress<int> GetInstance(int index)
+        {
+            ValidateIndex(index);
+
+            return StateForCurrentFlow.Instances[index];
+        }
+
+        private static State StateForCurrentFlow
+        {
+            get
+            {
+                var state = CurrentState.Value;
+                if (state == null)
+                {
+                    state = new State();
+                    CurrentState.Value = state;
+                }
+                return state;
+            }
+        }
+
+        private static void ValidateIndex(int index)
+        {
             if (index < 0 || index >= MaxCount)
                 throw new ArgumentOutOfRangeException(nameof(index));
+        }
 
-            Instances[index] = progress;
+        private sealed class State
+        {
+            public IProgress<int>[] Instances { get; } =
+            {
+                new Progress<int>(),
+                new Progress<int>(),
+            };
+
+            public int[] PreValues { get; } = new int[InstanceCount];
         }
     }
 }

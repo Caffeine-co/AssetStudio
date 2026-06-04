@@ -1,21 +1,14 @@
-﻿using AssetStudio;
-using AssetStudioCLI.Options;
+using AssetStudio;
+using AssetStudioCore.Options;
 using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace AssetStudioCLI
+namespace AssetStudioCore.Runtime
 {
-    internal enum LogOutputMode
-    {
-        Console,
-        File,
-        Both,
-    }
-
-    internal class CLILogger : ILogger
+    internal class AssetStudioConsoleLogger : ILogger
     {
         public string LogName;
         public string LogPath;
@@ -24,12 +17,12 @@ namespace AssetStudioCLI
         private readonly LogOutputMode logOutput;
         private readonly LoggerEvent logMinLevel;
 
-        public CLILogger()
+        public AssetStudioConsoleLogger(AssetStudioRuntimeOptions.RuntimeOptionsState options)
         {
-            logOutput = CLIOptions.o_logOutput.Value;
-            logMinLevel = CLIOptions.o_logLevel.Value;
+            logOutput = options.LogOutput;
+            logMinLevel = options.LogLevel;
             
-            var appAssembly = typeof(Program).Assembly.GetName();
+            var appAssembly = typeof(AssetStudioConsoleLogger).Assembly.GetName();
             var arch = Environment.Is64BitProcess ? "x64" : "x32";
             LogName = $"{appAssembly.Name}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log";
             LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogName);
@@ -41,7 +34,7 @@ namespace AssetStudioCLI
             }
 
             LogToFile(LoggerEvent.Verbose, $"---{appAssembly.Name} v{appAssembly.Version} [{arch}] | Logger launched---\n" +
-                                           $"CMD Args: {string.Join(" ", CLIOptions.cliArgs)}");
+                                           $"CMD Args: {string.Join(" ", options.CliArgs)}");
         }
 
         private static string ColorLogLevel(LoggerEvent logLevel)

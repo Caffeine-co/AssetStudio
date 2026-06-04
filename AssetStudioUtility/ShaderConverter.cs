@@ -11,18 +11,14 @@ namespace AssetStudio
 {
     public static class ShaderConverter
     {
+        private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+        private static readonly byte[] HeaderBytes = Utf8NoBom.GetBytes(header);
+
         public static string Convert(this Shader shader)
         {
             if (shader.m_SubProgramBlob != null) //5.3 - 5.4
             {
-                var decompressedBytes = new byte[shader.decompressedSize];
-                LZ4Codec.Decode(shader.m_SubProgramBlob, decompressedBytes);
-                using (var blobReader = new BinaryReader(new MemoryStream(decompressedBytes)))
-                {
-                    var program = new ShaderProgram(blobReader, shader.version);
-                    program.Read(blobReader, 0);
-                    return header + program.Export(Encoding.UTF8.GetString(shader.m_Script));
-                }
+                return header + ConvertSubProgramShader(shader);
             }
 
             if (shader.compressedBlob != null) //5.5 and up
@@ -31,6 +27,41 @@ namespace AssetStudio
             }
 
             return header + Encoding.UTF8.GetString(shader.m_Script);
+        }
+
+        public static void WriteTo(this Shader shader, Stream destination)
+        {
+            destination.Write(HeaderBytes, 0, HeaderBytes.Length);
+            if (shader.m_SubProgramBlob == null && shader.compressedBlob == null)
+            {
+                var script = shader.m_Script ?? Array.Empty<byte>();
+                destination.Write(script, 0, script.Length);
+                return;
+            }
+
+            var converted = shader.m_SubProgramBlob != null
+                ? ConvertSubProgramShader(shader)
+                : ConvertSerializedShader(shader);
+            using var writer = new StreamWriter(destination, Utf8NoBom, 8192, leaveOpen: true);
+            writer.Write(converted);
+            writer.Flush();
+        }
+
+        public static long GetDirectScriptByteLength(this Shader shader)
+        {
+            return shader.m_SubProgramBlob == null && shader.compressedBlob == null
+                ? HeaderBytes.LongLength + (shader.m_Script?.LongLength ?? 0)
+                : -1;
+        }
+
+        private static string ConvertSubProgramShader(Shader shader)
+        {
+            var decompressedBytes = new byte[shader.decompressedSize];
+            LZ4Codec.Decode(shader.m_SubProgramBlob, decompressedBytes);
+            using var blobReader = new BinaryReader(new MemoryStream(decompressedBytes));
+            var program = new ShaderProgram(blobReader, shader.version);
+            program.Read(blobReader, 0);
+            return program.Export(Encoding.UTF8.GetString(shader.m_Script));
         }
 
         private static string ConvertSerializedShader(Shader shader)

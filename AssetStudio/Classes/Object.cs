@@ -1,5 +1,6 @@
 ﻿using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -133,6 +134,12 @@ namespace AssetStudio
         {
             reader.Reset();
             return reader.ReadBytes((int)byteSize);
+        }
+
+        public void CopyRawDataTo(Stream destination)
+        {
+            reader.Reset();
+            reader.BaseStream.CopyTo(destination, byteSize);
         }
     }
 }

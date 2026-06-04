@@ -341,3 +341,7 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Local desktop/build cache
+.DS_Store
+AssetStudioNative/rust/haruki-assetstudio/target/

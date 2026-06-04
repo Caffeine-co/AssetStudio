@@ -1,4 +1,4 @@
-﻿namespace AssetStudioCLI.Options
+﻿namespace AssetStudioCore.Options
 {
     internal class Option<T>
     {

@@ -1,6 +1,6 @@
 using AssetStudio;
 
-namespace AssetStudioCLI
+namespace AssetStudioCore.Runtime
 {
     internal class GameObjectNode : BaseNode
     {

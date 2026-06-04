@@ -1,5 +1,5 @@
-﻿using AssetStudio;
-using AssetStudioCLI.Options;
+using AssetStudio;
+using AssetStudioCore.Options;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,24 +8,42 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace AssetStudioCLI
+namespace AssetStudioCore.Runtime
 {
-    internal static class ParallelExportDiagnostics
+    internal sealed class ParallelExportState
     {
-        private static readonly ConcurrentDictionary<string, long> TimingTicks = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
-        private static readonly ConcurrentDictionary<string, long> Counters = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
+        public ConcurrentDictionary<string, long> TimingTicks { get; } = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
+        public ConcurrentDictionary<string, long> Counters { get; } = new ConcurrentDictionary<string, long>(StringComparer.Ordinal);
+        public ConcurrentDictionary<string, bool> ExportPathDict { get; } = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-        public static void Reset()
+        public void Reset()
         {
             TimingTicks.Clear();
             Counters.Clear();
-            ImageSharpNativeAotGuard.TimingSink = AddTicks;
+            ExportPathDict.Clear();
+        }
+    }
+
+    internal static class ParallelExportDiagnostics
+    {
+        private static ParallelExportState currentState = new ParallelExportState();
+
+        public static void Reset()
+        {
+            currentState.Reset();
+            AssetStudioProcessState.ConfigureImageTimingSink(AddTicks);
+        }
+
+        public static void Configure(ParallelExportState state)
+        {
+            currentState = state;
+            AssetStudioProcessState.ConfigureImageTimingSink(AddTicks);
         }
 
         public static IReadOnlyDictionary<string, long> SnapshotTimingMs()
         {
             var snapshot = new Dictionary<string, long>(StringComparer.Ordinal);
-            foreach (var timing in TimingTicks)
+            foreach (var timing in currentState.TimingTicks)
             {
                 snapshot[timing.Key] = (long)Math.Round(timing.Value * 1000.0 / Stopwatch.Frequency);
             }
@@ -35,7 +53,7 @@ namespace AssetStudioCLI
         public static IReadOnlyDictionary<string, long> SnapshotMetrics()
         {
             var snapshot = new Dictionary<string, long>(StringComparer.Ordinal);
-            foreach (var counter in Counters)
+            foreach (var counter in currentState.Counters)
             {
                 snapshot[counter.Key] = counter.Value;
             }
@@ -44,7 +62,7 @@ namespace AssetStudioCLI
 
         public static void Count(string name)
         {
-            Counters.AddOrUpdate(name, 1, (_, value) => value + 1);
+            currentState.Counters.AddOrUpdate(name, 1, (_, value) => value + 1);
         }
 
         public static T Measure<T>(string name, Func<T> action)
@@ -75,37 +93,46 @@ namespace AssetStudioCLI
 
         private static void AddTicks(string name, long elapsedTicks)
         {
-            TimingTicks.AddOrUpdate(name, elapsedTicks, (_, value) => value + elapsedTicks);
+            currentState.TimingTicks.AddOrUpdate(name, elapsedTicks, (_, value) => value + elapsedTicks);
         }
     }
 
-    internal static class ParallelExporter
+    internal sealed class ParallelAssetExporter
     {
-        private static readonly ConcurrentDictionary<string, bool> ExportPathDict = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        private static ParallelExportState currentState = new ParallelExportState();
+        private AssetStudioRuntimeOptions.RuntimeOptionsState options = AssetStudioRuntimeOptions.Current;
 
-        public static void ResetDiagnostics()
+        public void Configure(ParallelExportState state, AssetStudioRuntimeOptions.RuntimeOptionsState runtimeOptions)
         {
-            ParallelExportDiagnostics.Reset();
+            currentState = state;
+            options = runtimeOptions;
+            ParallelExportDiagnostics.Configure(state);
         }
 
-        public static IReadOnlyDictionary<string, long> SnapshotTimingMs()
+        public void ResetDiagnostics()
+        {
+            currentState.Reset();
+            ParallelExportDiagnostics.Configure(currentState);
+        }
+
+        public IReadOnlyDictionary<string, long> SnapshotTimingMs()
         {
             return ParallelExportDiagnostics.SnapshotTimingMs();
         }
 
-        public static IReadOnlyDictionary<string, long> SnapshotMetrics()
+        public IReadOnlyDictionary<string, long> SnapshotMetrics()
         {
             return ParallelExportDiagnostics.SnapshotMetrics();
         }
 
-        public static bool ExportTexture2D(AssetItem item, string exportPath, out string debugLog)
+        public bool ExportTexture2D(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = "";
             ParallelExportDiagnostics.Count("parallel.texture2d.count");
             var m_Texture2D = (Texture2D)item.Asset;
-            if (CLIOptions.convertTexture)
+            if (options.ConvertTexture)
             {
-                var type = CLIOptions.o_imageFormat.Value;
+                var type = options.ImageFormat;
                 string exportFullPath = string.Empty;
                 var canExport = ParallelExportDiagnostics.Measure(
                     "parallel.texture2d.try_export_file",
@@ -113,7 +140,7 @@ namespace AssetStudioCLI
                 if (!canExport)
                     return false;
 
-                if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
+                if (options.ShouldWriteDebugLog)
                 {
                     var sb = new StringBuilder();
                     sb.AppendLine($"Converting {item.TypeString} \"{m_Texture2D.m_Name}\" to {type}..");
@@ -179,11 +206,11 @@ namespace AssetStudioCLI
             return true;
         }
 
-        public static bool ExportSprite(AssetItem item, string exportPath, out string debugLog)
+        public bool ExportSprite(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = "";
             ParallelExportDiagnostics.Count("parallel.sprite.count");
-            var type = CLIOptions.o_imageFormat.Value;
+            var type = options.ImageFormat;
             var alphaMask = SpriteMaskMode.On;
             string exportFullPath = string.Empty;
             var canExport = ParallelExportDiagnostics.Measure(
@@ -218,7 +245,7 @@ namespace AssetStudioCLI
             return spriteExported;
         }
 
-        public static bool ExportAudioClip(AssetItem item, string exportPath, out string debugLog)
+        public bool ExportAudioClip(AssetItem item, string exportPath, out string debugLog)
         {
             debugLog = string.Empty;
             ParallelExportDiagnostics.Count("parallel.audio.count");
@@ -236,7 +263,7 @@ namespace AssetStudioCLI
                     return false;
                 }
                 var converter = new AudioClipConverter(m_AudioClip);
-                if (CLIOptions.o_audioFormat.Value != AudioFormat.None && (converter.IsSupport || converter.IsLegacy))
+                if (options.AudioFormat != AudioFormat.None && (converter.IsSupport || converter.IsLegacy))
                 {
                     var canExport = ParallelExportDiagnostics.Measure(
                         "parallel.audio.try_export_file",
@@ -244,7 +271,7 @@ namespace AssetStudioCLI
                     if (!canExport)
                         return false;
 
-                    if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
+                    if (options.ShouldWriteDebugLog)
                     {
                         debugLog += $"Converting {item.TypeString} \"{m_AudioClip.m_Name}\" to wav..\n";
                         debugLog += GenerateAudioClipInfo(m_AudioClip);
@@ -274,7 +301,7 @@ namespace AssetStudioCLI
                     if (!canExport)
                         return false;
 
-                    if (CLIOptions.o_logLevel.Value <= LoggerEvent.Debug)
+                    if (options.ShouldWriteDebugLog)
                     {
                         debugLog += $"Exporting non-fmod {item.TypeString} \"{m_AudioClip.m_Name}\"..\n";
                         debugLog += GenerateAudioClipInfo(m_AudioClip);
@@ -321,11 +348,11 @@ namespace AssetStudioCLI
             return sb.ToString();
         }
 
-        private static bool TryExportFile(string dir, AssetItem item, string extension, out string fullPath)
+        private bool TryExportFile(string dir, AssetItem item, string extension, out string fullPath)
         {
             var fileName = FixFileName(item.Text);
-            var filenameFormat = CLIOptions.o_filenameFormat.Value;
-            var canOverwrite = CLIOptions.f_overwriteExisting.Value;
+            var filenameFormat = options.FilenameFormat;
+            var canOverwrite = options.OverwriteExisting;
             switch (filenameFormat)
             {
                 case FilenameFormat.AssetName_PathID:
@@ -336,7 +363,7 @@ namespace AssetStudioCLI
                     break;
             }
             fullPath = Path.Combine(dir, fileName + extension);
-            if (ExportPathDict.TryAdd(fullPath, true))
+            if (currentState.ExportPathDict.TryAdd(fullPath, true))
             {
                 if (CanWrite(fullPath, dir, canOverwrite))
                 {
@@ -363,7 +390,7 @@ namespace AssetStudioCLI
             return true;
         }
 
-        public static bool ParallelExportConvertFile(AssetItem item, string exportPath, out string debugLog)
+        public bool ParallelExportConvertFile(AssetItem item, string exportPath, out string debugLog)
         {
             switch (item.Type)
             {
@@ -386,9 +413,9 @@ namespace AssetStudioCLI
                 : Path.GetInvalidFileNameChars().Aggregate(str, (current, c) => current.Replace(c, '_'));
         }
 
-        public static void ClearHash()
+        public void ClearHash()
         {
-            ExportPathDict.Clear();
+            currentState.ExportPathDict.Clear();
         }
     }
 }

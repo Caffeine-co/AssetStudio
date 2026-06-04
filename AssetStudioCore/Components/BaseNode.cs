@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace AssetStudioCLI
+namespace AssetStudioCore.Runtime
 {
     internal class BaseNode
     {
