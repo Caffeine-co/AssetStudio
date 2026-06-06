@@ -11,50 +11,50 @@ use libloading::{Library, Symbol};
 use std::os::raw::{c_int, c_longlong, c_uchar, c_void};
 
 type FreeBufferFn = unsafe extern "C" fn(*mut c_uchar);
-type CapabilitiesV2Fn = unsafe extern "C" fn(*mut HarukiAssetStudioCapabilitiesResponse) -> i32;
-type ContextOpenV2Fn = unsafe extern "C" fn(
+type CapabilitiesV1Fn = unsafe extern "C" fn(*mut HarukiAssetStudioCapabilitiesResponse) -> i32;
+type ContextOpenV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioContextOpenRequest,
     *mut HarukiAssetStudioContextOpenResponse,
 ) -> i32;
-type ContextCloseV2Fn = unsafe extern "C" fn(
+type ContextCloseV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioContextCloseRequest,
     *mut HarukiAssetStudioContextCloseResponse,
 ) -> i32;
-type ListObjectsV2Fn = unsafe extern "C" fn(
+type ListObjectsV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioObjectListRequest,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
-type ListObjectsSizeV3Fn = unsafe extern "C" fn(
+type ListObjectsSizeV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioObjectListRequest,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
-type ListObjectsIntoV3Fn = unsafe extern "C" fn(
-    *const HarukiAssetStudioObjectListIntoRequestV3,
+type ListObjectsIntoV1Fn = unsafe extern "C" fn(
+    *const HarukiAssetStudioObjectListIntoRequestV1,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
 type LookupObjectsV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioObjectLookupRequest,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
-type LookupObjectsSizeV2Fn = unsafe extern "C" fn(
+type LookupObjectsSizeV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioObjectLookupRequest,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
-type LookupObjectsIntoV2Fn = unsafe extern "C" fn(
-    *const HarukiAssetStudioObjectLookupIntoRequestV2,
+type LookupObjectsIntoV1Fn = unsafe extern "C" fn(
+    *const HarukiAssetStudioObjectLookupIntoRequestV1,
     *mut HarukiAssetStudioObjectTable,
 ) -> i32;
-type ReadObjectsV3Fn = unsafe extern "C" fn(
+type ReadObjectsV1Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioObjectReadBatchRequest,
-    *mut HarukiAssetStudioObjectReadBatchResponseV3,
+    *mut HarukiAssetStudioObjectReadBatchResponseV1,
 ) -> i32;
-type ReadObjectsSizeV4Fn = unsafe extern "C" fn(
-    *const HarukiAssetStudioObjectReadBatchRequestV4,
-    *mut HarukiAssetStudioObjectReadBatchSizeResponseV4,
+type ReadObjectsSizeV1Fn = unsafe extern "C" fn(
+    *const HarukiAssetStudioObjectReadBatchRequestV1,
+    *mut HarukiAssetStudioObjectReadBatchSizeResponseV1,
 ) -> i32;
-type ReadObjectsIntoV4Fn = unsafe extern "C" fn(
-    *const HarukiAssetStudioObjectReadBatchIntoRequestV4,
-    *mut HarukiAssetStudioObjectReadBatchIntoResponseV4,
+type ReadObjectsIntoV1Fn = unsafe extern "C" fn(
+    *const HarukiAssetStudioObjectReadBatchIntoRequestV1,
+    *mut HarukiAssetStudioObjectReadBatchIntoResponseV1,
 ) -> i32;
 type ResultFreeFn = unsafe extern "C" fn(c_longlong) -> i32;
 
@@ -172,7 +172,7 @@ struct HarukiAssetStudioObjectListRequest {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectListIntoRequestV3 {
+struct HarukiAssetStudioObjectListIntoRequestV1 {
     struct_size: c_int,
     context_id: c_longlong,
     offset: c_int,
@@ -202,7 +202,7 @@ struct HarukiAssetStudioObjectLookupRequest {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectLookupIntoRequestV2 {
+struct HarukiAssetStudioObjectLookupIntoRequestV1 {
     struct_size: c_int,
     context_id: c_longlong,
     lookup_kind: c_int,
@@ -287,7 +287,7 @@ struct HarukiAssetStudioObjectReadBatchRequest {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadBatchRequestV4 {
+struct HarukiAssetStudioObjectReadBatchRequestV1 {
     struct_size: c_int,
     context_id: c_longlong,
     items: *const HarukiAssetStudioObjectReadItemRequest,
@@ -297,7 +297,7 @@ struct HarukiAssetStudioObjectReadBatchRequestV4 {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadBatchIntoRequestV4 {
+struct HarukiAssetStudioObjectReadBatchIntoRequestV1 {
     struct_size: c_int,
     context_id: c_longlong,
     items: *const HarukiAssetStudioObjectReadItemRequest,
@@ -327,7 +327,7 @@ struct HarukiAssetStudioObjectReadItemResponse {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadItemResponseV4 {
+struct HarukiAssetStudioObjectReadItemResponseV1 {
     index: c_int,
     status: c_int,
     error_code: c_int,
@@ -345,7 +345,7 @@ struct HarukiAssetStudioObjectReadItemResponseV4 {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadBatchResponseV3 {
+struct HarukiAssetStudioObjectReadBatchResponseV1 {
     abi_version: c_int,
     schema_version: c_int,
     object_read_batch_abi_version: c_int,
@@ -368,7 +368,7 @@ struct HarukiAssetStudioObjectReadBatchResponseV3 {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadBatchSizeResponseV4 {
+struct HarukiAssetStudioObjectReadBatchSizeResponseV1 {
     struct_size: c_int,
     abi_version: c_int,
     schema_version: c_int,
@@ -392,7 +392,7 @@ struct HarukiAssetStudioObjectReadBatchSizeResponseV4 {
 }
 
 #[repr(C)]
-struct HarukiAssetStudioObjectReadBatchIntoResponseV4 {
+struct HarukiAssetStudioObjectReadBatchIntoResponseV1 {
     struct_size: c_int,
     abi_version: c_int,
     schema_version: c_int,
@@ -404,7 +404,7 @@ struct HarukiAssetStudioObjectReadBatchIntoResponseV4 {
     requested_count: c_int,
     returned_count: c_int,
     failed_count: c_int,
-    items: *mut HarukiAssetStudioObjectReadItemResponseV4,
+    items: *mut HarukiAssetStudioObjectReadItemResponseV1,
     string_data: *mut c_uchar,
     string_data_len: c_int,
     items_buffer: *mut c_uchar,
@@ -427,31 +427,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     unsafe {
         let library = Library::new(library_path)?;
-        let capabilities_v2: Symbol<CapabilitiesV2Fn> =
-            library.get(b"haruki_assetstudio_capabilities_v2")?;
-        let open_v2: Symbol<ContextOpenV2Fn> =
-            library.get(b"haruki_assetstudio_context_open_v2")?;
-        let list_size_v3: Symbol<ListObjectsSizeV3Fn> =
-            library.get(b"haruki_assetstudio_context_list_objects_size_v3")?;
-        let list_into_v3: Symbol<ListObjectsIntoV3Fn> =
-            library.get(b"haruki_assetstudio_context_list_objects_into_v3")?;
-        let lookup_size_v2: Symbol<LookupObjectsSizeV2Fn> =
-            library.get(b"haruki_assetstudio_context_lookup_objects_size_v2")?;
-        let lookup_into_v2: Symbol<LookupObjectsIntoV2Fn> =
-            library.get(b"haruki_assetstudio_context_lookup_objects_into_v2")?;
-        let read_objects_v3: Symbol<ReadObjectsV3Fn> =
-            library.get(b"haruki_assetstudio_context_read_objects_v3")?;
-        let read_objects_size_v4: Symbol<ReadObjectsSizeV4Fn> =
-            library.get(b"haruki_assetstudio_context_read_objects_size_v4")?;
-        let read_objects_into_v4: Symbol<ReadObjectsIntoV4Fn> =
-            library.get(b"haruki_assetstudio_context_read_objects_into_v4")?;
-        let close_v2: Symbol<ContextCloseV2Fn> =
-            library.get(b"haruki_assetstudio_context_close_v2")?;
+        let capabilities_v1: Symbol<CapabilitiesV1Fn> =
+            library.get(b"haruki_assetstudio_capabilities_v1")?;
+        let open_v1: Symbol<ContextOpenV1Fn> =
+            library.get(b"haruki_assetstudio_context_open_v1")?;
+        let list_size_v1: Symbol<ListObjectsSizeV1Fn> =
+            library.get(b"haruki_assetstudio_context_list_objects_size_v1")?;
+        let list_into_v1: Symbol<ListObjectsIntoV1Fn> =
+            library.get(b"haruki_assetstudio_context_list_objects_into_v1")?;
+        let lookup_size_v1: Symbol<LookupObjectsSizeV1Fn> =
+            library.get(b"haruki_assetstudio_context_lookup_objects_size_v1")?;
+        let lookup_into_v1: Symbol<LookupObjectsIntoV1Fn> =
+            library.get(b"haruki_assetstudio_context_lookup_objects_into_v1")?;
+        let read_objects_handle_v1: Symbol<ReadObjectsV1Fn> =
+            library.get(b"haruki_assetstudio_context_read_objects_handle_v1")?;
+        let read_objects_size_v1: Symbol<ReadObjectsSizeV1Fn> =
+            library.get(b"haruki_assetstudio_context_read_objects_size_v1")?;
+        let read_objects_into_v1: Symbol<ReadObjectsIntoV1Fn> =
+            library.get(b"haruki_assetstudio_context_read_objects_into_v1")?;
+        let close_v1: Symbol<ContextCloseV1Fn> =
+            library.get(b"haruki_assetstudio_context_close_v1")?;
         let free_buffer: Symbol<FreeBufferFn> = library.get(b"haruki_assetstudio_free_buffer")?;
         let result_free: Symbol<ResultFreeFn> = library.get(b"haruki_assetstudio_result_free")?;
 
         let mut caps = HarukiAssetStudioCapabilitiesResponse::default();
-        let caps_status = capabilities_v2(&mut caps);
+        let caps_status = capabilities_v1(&mut caps);
         assert_eq!(caps_status, 0);
         assert_eq!(caps.status, 0);
         assert_eq!(
@@ -459,7 +459,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::mem::size_of::<HarukiAssetStudioCapabilitiesResponse>()
         );
         assert_eq!(caps.core_api_version_major, 1);
-        assert_eq!(caps.object_table_abi_version, 3);
+        assert_eq!(caps.object_table_abi_version, 1);
         assert_eq!(caps.supports_caller_provided_object_table_buffers, 1);
         assert_eq!(caps.supports_direct_object_read_retry, 1);
         assert_eq!(caps.native_console_capture, 0);
@@ -469,8 +469,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert!(caps["max_object_read_batch_count"].as_i64().unwrap_or_default() >= 1);
         println!("capabilities: {}", caps);
 
-        let open_response = call_context_open_v2(
-            *open_v2,
+        let open_response = call_context_open_v1(
+            *open_v1,
             *free_buffer,
             input_path.as_bytes(),
             unity_version.as_bytes(),
@@ -481,7 +481,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             context_id, open_response.object_index_count
         );
 
-        let typed_assets = call_list_objects_v3(*list_size_v3, *list_into_v3, context_id, 0, 8, None)?;
+        let typed_assets = call_list_objects_v1(*list_size_v1, *list_into_v1, context_id, 0, 8, None)?;
         println!("typed listed {} objects", typed_assets.len());
         if let Some(first) = typed_assets.first() {
             println!(
@@ -489,9 +489,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 first.path_id,
                 native_string(&first.string_data, first.object.type_offset, first.object.type_len)?
             );
-            let lookup_assets = call_lookup_objects_v2(
-                *lookup_size_v2,
-                *lookup_into_v2,
+            let lookup_assets = call_lookup_objects_v1(
+                *lookup_size_v1,
+                *lookup_into_v1,
                 context_id,
                 1,
                 first.path_id,
@@ -505,26 +505,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let typed_read_assets =
-            call_list_objects_v3(*list_size_v3, *list_into_v3, context_id, 0, 1, Some("TextAsset"))?;
+            call_list_objects_v1(*list_size_v1, *list_into_v1, context_id, 0, 1, Some("TextAsset"))?;
         let typed_read_asset = typed_read_assets.first().or_else(|| typed_assets.first());
         if let Some(first) = typed_read_asset {
-            let response = call_read_objects_v4(
-                *read_objects_size_v4,
-                *read_objects_into_v4,
+            let response = call_read_objects_v1(
+                *read_objects_size_v1,
+                *read_objects_into_v1,
                 context_id,
                 first.path_id,
                 "auto",
                 "raw_rgba",
             )?;
             println!(
-                "typed v4 read {} objects, {} bytes, into abi {}",
+                "typed v1 read {} objects, {} bytes, into abi {}",
                 response.returned_count,
                 response.payload_len,
                 response.object_read_batch_into_abi_version
             );
 
-            let v3_response = call_read_objects_v3(
-                *read_objects_v3,
+            let v1_response = call_read_objects_handle_v1(
+                *read_objects_handle_v1,
                 *result_free,
                 context_id,
                 first.path_id,
@@ -532,14 +532,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "raw_rgba",
             )?;
             println!(
-                "compat typed v3 read {} objects, {} bytes, handle abi {}",
-                v3_response.returned_count,
-                v3_response.payload_len,
-                v3_response.object_read_batch_handle_abi_version
+                "compat typed v1 read {} objects, {} bytes, handle abi {}",
+                v1_response.returned_count,
+                v1_response.payload_len,
+                v1_response.object_read_batch_handle_abi_version
             );
         }
 
-        call_context_close_v2(*close_v2, context_id)?;
+        call_context_close_v1(*close_v1, context_id)?;
         println!("closed context {}", context_id);
     }
 
@@ -552,8 +552,8 @@ struct OwnedAssetObject {
     string_data: Vec<u8>,
 }
 
-unsafe fn call_context_open_v2(
-    function: ContextOpenV2Fn,
+unsafe fn call_context_open_v1(
+    function: ContextOpenV1Fn,
     free_buffer: FreeBufferFn,
     input_path: &[u8],
     unity_version: &[u8],
@@ -579,7 +579,7 @@ unsafe fn call_context_open_v2(
             unsafe { free_buffer(response.buffer) };
         }
         return Err(format!(
-            "context_open_v2 failed: rc={} status={} error_code={}",
+            "context_open_v1 failed: rc={} status={} error_code={}",
             code, response.status, response.error_code
         )
         .into());
@@ -593,8 +593,8 @@ unsafe fn call_context_open_v2(
     Ok(response)
 }
 
-unsafe fn call_list_objects_v2(
-    function: ListObjectsV2Fn,
+unsafe fn call_list_objects_v1(
+    function: ListObjectsV1Fn,
     free_buffer: FreeBufferFn,
     context_id: c_longlong,
     offset: c_int,
@@ -620,7 +620,7 @@ unsafe fn call_list_objects_v2(
     let code = unsafe { function(&request, &mut table) };
     if code != 0 || table.status != 0 {
         return Err(format!(
-            "list_objects_v2 failed: rc={} status={} error_code={}",
+            "list_objects_v1 failed: rc={} status={} error_code={}",
             code, table.status, table.error_code
         )
         .into());
@@ -649,9 +649,9 @@ unsafe fn call_list_objects_v2(
     Ok(objects)
 }
 
-unsafe fn call_list_objects_v3(
-    size_function: ListObjectsSizeV3Fn,
-    into_function: ListObjectsIntoV3Fn,
+unsafe fn call_list_objects_v1(
+    size_function: ListObjectsSizeV1Fn,
+    into_function: ListObjectsIntoV1Fn,
     context_id: c_longlong,
     offset: c_int,
     limit: c_int,
@@ -676,15 +676,15 @@ unsafe fn call_list_objects_v3(
     let size_code = unsafe { size_function(&request, &mut size_table) };
     if size_code != 0 || size_table.status != 0 {
         return Err(format!(
-            "list_objects_size_v3 failed: rc={} status={} error_code={}",
+            "list_objects_size_v1 failed: rc={} status={} error_code={}",
             size_code, size_table.status, size_table.error_code
         )
         .into());
     }
 
     let mut buffer = vec![0u8; size_table.buffer_len.max(0) as usize];
-    let into_request = HarukiAssetStudioObjectListIntoRequestV3 {
-        struct_size: std::mem::size_of::<HarukiAssetStudioObjectListIntoRequestV3>() as c_int,
+    let into_request = HarukiAssetStudioObjectListIntoRequestV1 {
+        struct_size: std::mem::size_of::<HarukiAssetStudioObjectListIntoRequestV1>() as c_int,
         context_id,
         offset,
         limit,
@@ -703,7 +703,7 @@ unsafe fn call_list_objects_v3(
     let into_code = unsafe { into_function(&into_request, &mut table) };
     if into_code != 0 || table.status != 0 {
         return Err(format!(
-            "list_objects_into_v3 failed: rc={} status={} error_code={} required_buffer_len={}",
+            "list_objects_into_v1 failed: rc={} status={} error_code={} required_buffer_len={}",
             into_code, table.status, table.error_code, table.buffer_len
         )
         .into());
@@ -791,9 +791,9 @@ unsafe fn call_lookup_objects_v1(
     Ok(objects)
 }
 
-unsafe fn call_lookup_objects_v2(
-    size_function: LookupObjectsSizeV2Fn,
-    into_function: LookupObjectsIntoV2Fn,
+unsafe fn call_lookup_objects_v1(
+    size_function: LookupObjectsSizeV1Fn,
+    into_function: LookupObjectsIntoV1Fn,
     context_id: c_longlong,
     lookup_kind: c_int,
     path_id: c_longlong,
@@ -824,15 +824,15 @@ unsafe fn call_lookup_objects_v2(
     let size_code = unsafe { size_function(&request, &mut size_table) };
     if size_code != 0 || size_table.status != 0 {
         return Err(format!(
-            "lookup_objects_size_v2 failed: rc={} status={} error_code={}",
+            "lookup_objects_size_v1 failed: rc={} status={} error_code={}",
             size_code, size_table.status, size_table.error_code
         )
         .into());
     }
 
     let mut buffer = vec![0u8; size_table.buffer_len.max(0) as usize];
-    let into_request = HarukiAssetStudioObjectLookupIntoRequestV2 {
-        struct_size: std::mem::size_of::<HarukiAssetStudioObjectLookupIntoRequestV2>() as c_int,
+    let into_request = HarukiAssetStudioObjectLookupIntoRequestV1 {
+        struct_size: std::mem::size_of::<HarukiAssetStudioObjectLookupIntoRequestV1>() as c_int,
         context_id,
         lookup_kind,
         path_id,
@@ -855,7 +855,7 @@ unsafe fn call_lookup_objects_v2(
     let into_code = unsafe { into_function(&into_request, &mut table) };
     if into_code != 0 || table.status != 0 {
         return Err(format!(
-            "lookup_objects_into_v2 failed: rc={} status={} error_code={} required_buffer_len={}",
+            "lookup_objects_into_v1 failed: rc={} status={} error_code={} required_buffer_len={}",
             into_code, table.status, table.error_code, table.buffer_len
         )
         .into());
@@ -881,14 +881,14 @@ unsafe fn call_lookup_objects_v2(
     Ok(objects)
 }
 
-unsafe fn call_read_objects_v4(
-    size_function: ReadObjectsSizeV4Fn,
-    into_function: ReadObjectsIntoV4Fn,
+unsafe fn call_read_objects_v1(
+    size_function: ReadObjectsSizeV1Fn,
+    into_function: ReadObjectsIntoV1Fn,
     context_id: c_longlong,
     path_id: c_longlong,
     kind: &str,
     image_format: &str,
-) -> Result<HarukiAssetStudioObjectReadBatchIntoResponseV4, Box<dyn std::error::Error>> {
+) -> Result<HarukiAssetStudioObjectReadBatchIntoResponseV1, Box<dyn std::error::Error>> {
     let kind = kind.as_bytes();
     let image_format = image_format.as_bytes();
     let item = HarukiAssetStudioObjectReadItemRequest {
@@ -898,8 +898,8 @@ unsafe fn call_read_objects_v4(
         image_format_utf8: image_format.as_ptr(),
         image_format_utf8_len: image_format.len() as c_int,
     };
-    let size_request = HarukiAssetStudioObjectReadBatchRequestV4 {
-        struct_size: std::mem::size_of::<HarukiAssetStudioObjectReadBatchRequestV4>() as c_int,
+    let size_request = HarukiAssetStudioObjectReadBatchRequestV1 {
+        struct_size: std::mem::size_of::<HarukiAssetStudioObjectReadBatchRequestV1>() as c_int,
         context_id,
         items: &item,
         count: 1,
@@ -907,11 +907,11 @@ unsafe fn call_read_objects_v4(
         reserved: 0,
     };
     let mut size_response =
-        unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchSizeResponseV4>() };
+        unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchSizeResponseV1>() };
     let size_code = unsafe { size_function(&size_request, &mut size_response) };
     if size_code != 0 || size_response.status != 0 {
         return Err(format!(
-            "read_objects_size_v4 failed: rc={} status={} error_code={}",
+            "read_objects_size_v1 failed: rc={} status={} error_code={}",
             size_code, size_response.status, size_response.error_code
         )
         .into());
@@ -919,8 +919,8 @@ unsafe fn call_read_objects_v4(
 
     let mut items_buffer = vec![0u8; size_response.required_items_buffer_len as usize];
     let mut payload = vec![0u8; size_response.required_payload_len as usize];
-    let into_request = HarukiAssetStudioObjectReadBatchIntoRequestV4 {
-        struct_size: std::mem::size_of::<HarukiAssetStudioObjectReadBatchIntoRequestV4>() as c_int,
+    let into_request = HarukiAssetStudioObjectReadBatchIntoRequestV1 {
+        struct_size: std::mem::size_of::<HarukiAssetStudioObjectReadBatchIntoRequestV1>() as c_int,
         context_id,
         items: &item,
         count: 1,
@@ -932,29 +932,29 @@ unsafe fn call_read_objects_v4(
         reserved: 0,
     };
     let mut into_response =
-        unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchIntoResponseV4>() };
+        unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchIntoResponseV1>() };
     let into_code = unsafe { into_function(&into_request, &mut into_response) };
     if into_code != 0 || into_response.status != 0 {
         return Err(format!(
-            "read_objects_into_v4 failed: rc={} status={} error_code={}",
+            "read_objects_into_v1 failed: rc={} status={} error_code={}",
             into_code, into_response.status, into_response.error_code
         )
         .into());
     }
     if into_response.payload_len != payload.len() as c_longlong {
-        return Err("read_objects_into_v4 payload length mismatch".into());
+        return Err("read_objects_into_v1 payload length mismatch".into());
     }
     Ok(into_response)
 }
 
-unsafe fn call_read_objects_v3(
-    function: ReadObjectsV3Fn,
+unsafe fn call_read_objects_handle_v1(
+    function: ReadObjectsV1Fn,
     result_free: ResultFreeFn,
     context_id: c_longlong,
     path_id: c_longlong,
     kind: &str,
     image_format: &str,
-) -> Result<HarukiAssetStudioObjectReadBatchResponseV3, Box<dyn std::error::Error>> {
+) -> Result<HarukiAssetStudioObjectReadBatchResponseV1, Box<dyn std::error::Error>> {
     let kind = kind.as_bytes();
     let image_format = image_format.as_bytes();
     let item = HarukiAssetStudioObjectReadItemRequest {
@@ -970,20 +970,20 @@ unsafe fn call_read_objects_v3(
         count: 1,
         flags: 0,
     };
-    let mut response = unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchResponseV3>() };
+    let mut response = unsafe { std::mem::zeroed::<HarukiAssetStudioObjectReadBatchResponseV1>() };
     let code = unsafe { function(&request, &mut response) };
     if code != 0 || response.status != 0 {
         if response.result_handle > 0 {
             unsafe { result_free(response.result_handle) };
         }
         return Err(format!(
-            "read_objects_v3 failed: rc={} status={} error_code={}",
+            "read_objects_handle_v1 failed: rc={} status={} error_code={}",
             code, response.status, response.error_code
         )
         .into());
     }
     if response.result_handle <= 0 {
-        return Err("read_objects_v3 did not return a result handle".into());
+        return Err("read_objects_handle_v1 did not return a result handle".into());
     }
     let free_code = unsafe { result_free(response.result_handle) };
     if free_code != 0 {
@@ -992,8 +992,8 @@ unsafe fn call_read_objects_v3(
     Ok(response)
 }
 
-unsafe fn call_context_close_v2(
-    function: ContextCloseV2Fn,
+unsafe fn call_context_close_v1(
+    function: ContextCloseV1Fn,
     context_id: c_longlong,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let request = HarukiAssetStudioContextCloseRequest {
@@ -1006,7 +1006,7 @@ unsafe fn call_context_close_v2(
     let code = unsafe { function(&request, &mut response) };
     if code != 0 || response.status != 0 {
         return Err(format!(
-            "context_close_v2 failed: rc={} status={} error_code={}",
+            "context_close_v1 failed: rc={} status={} error_code={}",
             code, response.status, response.error_code
         )
         .into());

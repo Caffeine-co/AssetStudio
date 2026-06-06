@@ -10,59 +10,59 @@ The native adapter calls `AssetStudioCore` directly. The CLI is now a separate e
 
 Use the context API for library integrations:
 
-1. `haruki_assetstudio_capabilities_v2(&response)` to check typed ABI/schema versions and supported FFI feature flags.
-2. `haruki_assetstudio_abi_layout_v2(&response)` to verify native struct sizes against the caller's compiled bindings.
+1. `haruki_assetstudio_capabilities_v1(&response)` to check typed ABI/schema versions and supported FFI feature flags.
+2. `haruki_assetstudio_abi_layout_v1(&response)` to verify native struct sizes against the caller's compiled bindings.
 3. `haruki_assetstudio_limits_v1(&response)` to get hard limits through a typed response.
-4. `haruki_assetstudio_context_open_v2(&request, &response)` to load and index a bundle or asset directory without returning the full object list.
-5. `haruki_assetstudio_context_list_objects_size_v3(...)` and `haruki_assetstudio_context_list_objects_into_v3(...)` to page through objects into a caller-owned object table buffer.
-6. `haruki_assetstudio_context_read_objects_size_v4(...)` to get exact metadata/string/payload buffer sizes for a typed batch read.
-7. `haruki_assetstudio_context_read_objects_into_v4(...)`, direct v6, or direct retry v7 to read payloads into caller-owned or safe native-owned buffers.
-8. `haruki_assetstudio_context_close_v2(&request, &response)` to release the active context.
-9. Release any library-owned typed buffers. For list v3 and read v4 typed calls, the caller owns the output buffers. For v3/v7 typed batch reads, release `result_handle` once with `haruki_assetstudio_result_free`; for list v2 and lookup v1 compatibility typed calls, release returned table buffers with `haruki_assetstudio_free_buffer`. `haruki_assetstudio_free_string` is retained only as an ABI compatibility helper for callers that still resolve the old symbol.
+4. `haruki_assetstudio_context_open_v1(&request, &response)` to load and index a bundle or asset directory without returning the full object list.
+5. `haruki_assetstudio_context_list_objects_size_v1(...)` and `haruki_assetstudio_context_list_objects_into_v1(...)` to page through objects into a caller-owned object table buffer.
+6. `haruki_assetstudio_context_read_objects_size_v1(...)` to get exact metadata/string/payload buffer sizes for a typed batch read.
+7. `haruki_assetstudio_context_read_objects_into_v1(...)`, direct v1, or direct retry v1 to read payloads into caller-owned or safe native-owned buffers.
+8. `haruki_assetstudio_context_close_v1(&request, &response)` to release the active context.
+9. Release any library-owned typed buffers. For list v1 and read v1 typed calls, the caller owns the output buffers. For v1/v1 typed batch reads, release `result_handle` once with `haruki_assetstudio_result_free`; for list v1 and lookup v1 compatibility typed calls, release returned table buffers with `haruki_assetstudio_free_buffer`. `haruki_assetstudio_free_string` is retained only as an ABI compatibility helper for callers that still resolve the old symbol.
 
-Core logger, progress, runtime options, and ImageSharp timing sinks are execution-context local, so `limits_v1.legacy_static_engine` is `false`. Multiple active contexts are supported up to `limits_v1.max_active_contexts`, and open/list/lookup/read/close calls use per-context lifetime guards instead of one cross-context operation gate. `capabilities_v2.supports_concurrent_operations` is `true`, with narrow internal locks retained only for dependencies that require them, such as the NativeAOT ImageSharp guard. Per-context lifetime guards are enabled (`supports_context_lifetime_guards=true`): calls retain the context while running, and `close` returns `context_busy` / `HARUKI_ASSETSTUDIO_CONTEXT_ERROR_CONTEXT_BUSY` if another call is still using that context. The Native layer does not redirect process-wide `Console.Out`/`Console.Error` during normal calls; `capabilities_v2.native_console_capture` is `false`.
+Core logger, progress, runtime options, and ImageSharp timing sinks are execution-context local, so `limits_v1.legacy_static_engine` is `false`. Multiple active contexts are supported up to `limits_v1.max_active_contexts`, and open/list/lookup/read/close calls use per-context lifetime guards instead of one cross-context operation gate. `capabilities_v1.supports_concurrent_operations` is `true`, with narrow internal locks retained only for dependencies that require them, such as the NativeAOT ImageSharp guard. Per-context lifetime guards are enabled (`supports_context_lifetime_guards=true`): calls retain the context while running, and `close` returns `context_busy` / `HARUKI_ASSETSTUDIO_CONTEXT_ERROR_CONTEXT_BUSY` if another call is still using that context. The Native layer does not redirect process-wide `Console.Out`/`Console.Error` during normal calls; `capabilities_v1.native_console_capture` is `false`.
 
 ## Version Model
 
-Function suffixes such as `_v2`, `_v3`, and `_v7` identify exported symbol generations and should only change when that entry point's C ABI changes. Typed responses also report normalized runtime contract versions: `HARUKI_ASSETSTUDIO_ABI_VERSION`, `HARUKI_ASSETSTUDIO_SCHEMA_VERSION`, `HARUKI_ASSETSTUDIO_LAYOUT_VERSION`, and per-feature ABI versions for context, limits, object table, and direct retry reads. SDKs should load the suffixed symbols they were built for, then compare these response versions and the `abi_layout_v2` struct sizes before using hot-path calls.
+Function suffixes such as `_v1`, `_v1`, and `_v1` identify exported symbol generations and should only change when that entry point's C ABI changes. Typed responses also report normalized runtime contract versions: `HARUKI_ASSETSTUDIO_ABI_VERSION`, `HARUKI_ASSETSTUDIO_SCHEMA_VERSION`, `HARUKI_ASSETSTUDIO_LAYOUT_VERSION`, and per-feature ABI versions for context, limits, object table, and direct retry reads. SDKs should load the suffixed symbols they were built for, then compare these response versions and the `abi_layout_v1` struct sizes before using hot-path calls.
 
 The typed ABI is defensive, but it is still a C ABI. Null pointers, negative lengths, oversized UTF-8 lengths, oversized object table page limits, oversized batch counts, invalid `struct_size`, missing contexts, unsupported object kinds, and insufficient caller buffers are converted to status/error codes. `haruki_assetstudio_limits_v1` exposes the current hard limits. Dangling pointers, forged addresses, or pointers to memory shorter than the declared length are undefined behavior at the process boundary and cannot be reliably recovered by the callee. Rust bindings should keep request buffers alive for the entire call, pass exact byte lengths, initialize every struct with zeroed memory plus `struct_size`, and treat all returned pointers as borrowed unless the specific function documents caller ownership.
 
 Recommended SDK flow:
 
 ```text
-capabilities_v2 -> abi_layout_v2 -> limits_v1 -> open_v2 -> typed list size_v3 -> typed list into_v3 -> typed read by-index direct retry_v7 -> result_free if needed -> close_v2
+capabilities_v1 -> abi_layout_v1 -> limits_v1 -> open_v1 -> typed list size_v1 -> typed list into_v1 -> typed read by-index direct retry_v1 -> result_free if needed -> close_v1
 ```
 
-For every typed v2/v3/v4 request, set `struct_size` to `sizeof(request_type)`, set `flags` to `0` unless a future capability documents a flag, and set all `reserved` fields to `0`. Typed responses fill their own `struct_size` so callers can validate the ABI layout they compiled against.
+For every typed v1/v1/v1 request, set `struct_size` to `sizeof(request_type)`, set `flags` to `0` unless a future capability documents a flag, and set all `reserved` fields to `0`. Typed responses fill their own `struct_size` so callers can validate the ABI layout they compiled against.
 
-`haruki_assetstudio_abi_layout_v2` reports the native `sizeof(...)` for each public typed struct used by the current SDK path. SDK bindings should compare those values with their own struct sizes during startup and fail fast if a layout differs. `haruki_assetstudio_limits_v1` returns hard limits through a typed struct, so hot-path hosts do not need a secondary metadata format to discover page, UTF-8, batch, payload, cache, and legacy engine limits.
+`haruki_assetstudio_abi_layout_v1` reports the native `sizeof(...)` for each public typed struct used by the current SDK path. SDK bindings should compare those values with their own struct sizes during startup and fail fast if a layout differs. `haruki_assetstudio_limits_v1` returns hard limits through a typed struct, so hot-path hosts do not need a secondary metadata format to discover page, UTF-8, batch, payload, cache, and legacy engine limits.
 
-For high-throughput object enumeration, prefer `haruki_assetstudio_context_list_objects_size_v3` plus `haruki_assetstudio_context_list_objects_into_v3` when `capabilities_v2.supports_caller_provided_object_table_buffers` is `true`. It writes the typed object table and UTF-8 string pool into caller-owned memory, avoiding large intermediate response blobs and avoiding one native alloc/free per page. `haruki_assetstudio_context_list_objects_v2` remains the compatibility typed path when a caller wants the library to allocate the table buffer. If `limit <= 0`, typed table calls return at most `limits_v1.max_object_table_page_limit` objects; if `limit > limits_v1.max_object_table_page_limit`, they return `HARUKI_ASSETSTUDIO_INVALID_REQUEST`. Asset type filtering is handled by a Core-side type index while preserving object order.
+For high-throughput object enumeration, prefer `haruki_assetstudio_context_list_objects_size_v1` plus `haruki_assetstudio_context_list_objects_into_v1` when `capabilities_v1.supports_caller_provided_object_table_buffers` is `true`. It writes the typed object table and UTF-8 string pool into caller-owned memory, avoiding large intermediate response blobs and avoiding one native alloc/free per page. `haruki_assetstudio_context_list_objects_v1` remains the compatibility typed path when a caller wants the library to allocate the table buffer. If `limit <= 0`, typed table calls return at most `limits_v1.max_object_table_page_limit` objects; if `limit > limits_v1.max_object_table_page_limit`, they return `HARUKI_ASSETSTUDIO_INVALID_REQUEST`. Asset type filtering is handled by a Core-side type index while preserving object order.
 
-For targeted object discovery, prefer `haruki_assetstudio_context_lookup_objects_size_v2` plus `haruki_assetstudio_context_lookup_objects_into_v2` when `capabilities_v2.supports_caller_provided_object_lookup_buffers` is `true`. It reuses the typed object table layout and can lookup by path id, name, container, or type before the caller pays to move a wider object list across the ABI boundary. `haruki_assetstudio_context_lookup_objects_v1` remains the compatibility typed path when a caller wants the library to allocate the table buffer. Exact path id/name/container/type lookup is indexed; set `HARUKI_ASSETSTUDIO_OBJECT_LOOKUP_CONTAINS` only when substring matching is needed.
+For targeted object discovery, prefer `haruki_assetstudio_context_lookup_objects_size_v1` plus `haruki_assetstudio_context_lookup_objects_into_v1` when `capabilities_v1.supports_caller_provided_object_lookup_buffers` is `true`. It reuses the typed object table layout and can lookup by path id, name, container, or type before the caller pays to move a wider object list across the ABI boundary. `haruki_assetstudio_context_lookup_objects_v1` remains the compatibility typed path when a caller wants the library to allocate the table buffer. Exact path id/name/container/type lookup is indexed; set `HARUKI_ASSETSTUDIO_OBJECT_LOOKUP_CONTAINS` only when substring matching is needed.
 
-For high-throughput object reads after a typed list/lookup, prefer `haruki_assetstudio_context_read_objects_by_index_direct_into_v6` when direct read and by-index read are available and the caller already has reusable buffers. The object `index` returned by list/lookup is stable for the lifetime of the context, so this path avoids path-id dictionary lookup, keeps all read output in caller-owned buffers, and skips the per-context pending batch cache. Each typed object row includes default `estimated_payload_capacity` plus kind-specific `raw_payload_capacity`, `image_payload_capacity`, and `text_payload_capacity`; SDK callers can allocate or grow their reusable payload buffer from the best matching hint and call direct v6 without a size prepass. If direct v6 returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`, grow to `response.required_payload_len` and retry.
+For high-throughput object reads after a typed list/lookup, prefer `haruki_assetstudio_context_read_objects_by_index_direct_into_v1` when direct read and by-index read are available and the caller already has reusable buffers. The object `index` returned by list/lookup is stable for the lifetime of the context, so this path avoids path-id dictionary lookup, keeps all read output in caller-owned buffers, and skips the per-context pending batch cache. Each typed object row includes default `estimated_payload_capacity` plus kind-specific `raw_payload_capacity`, `image_payload_capacity`, and `text_payload_capacity`; SDK callers can allocate or grow their reusable payload buffer from the best matching hint and call direct v1 without a size prepass. If direct v1 returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`, grow to `response.required_payload_len` and retry.
 
-For a safer SDK default, use `haruki_assetstudio_context_read_objects_by_index_direct_retry_v7` or path-id `haruki_assetstudio_context_read_objects_direct_retry_v7` when `capabilities_v2.supports_direct_object_read_retry` is true. v7 accepts the same caller-owned buffers as v6. If they are sufficient, `result_handle` is `0` and returned pointers borrow caller memory. If either buffer is too small or null, Native allocates exact-size replacement buffers, sets `ownership_flags` and `result_handle`, and returns the normal object read status instead of `BUFFER_TOO_SMALL`; release that handle once with `haruki_assetstudio_result_free`. This avoids a manual Rust resize loop while keeping FFI exceptions contained as fixed status/error codes.
+For a safer SDK default, use `haruki_assetstudio_context_read_objects_by_index_direct_retry_v1` or path-id `haruki_assetstudio_context_read_objects_direct_retry_v1` when `capabilities_v1.supports_direct_object_read_retry` is true. v1 accepts the same caller-owned buffers as v1. If they are sufficient, `result_handle` is `0` and returned pointers borrow caller memory. If either buffer is too small or null, Native allocates exact-size replacement buffers, sets `ownership_flags` and `result_handle`, and returns the normal object read status instead of `BUFFER_TOO_SMALL`; release that handle once with `haruki_assetstudio_result_free`. This avoids a manual Rust resize loop while keeping FFI exceptions contained as fixed status/error codes.
 
-When buffer sizes are unknown and the caller wants strict caller-owned memory only, use the two-step size/into path instead: `haruki_assetstudio_context_read_objects_by_index_size_v5` plus `haruki_assetstudio_context_read_objects_by_index_into_v5`, or path-id `haruki_assetstudio_context_read_objects_size_v4` plus `haruki_assetstudio_context_read_objects_into_v4`. All these paths write per-item typed error messages into the same UTF-8 string pool. If some items fail and some succeed, `response.status` remains `0` while `response.error_code` is `HARUKI_ASSETSTUDIO_OBJECT_READ_ERROR_PARTIAL_FAILURE`; inspect each item status/error code before using its payload range. If all items fail with the same reason, the batch returns that concrete error code instead of a generic internal error. When `supports_cached_object_read_size_v4` is true, the two-step size path keeps the most recent matching size result inside the context so the following `into` call can avoid re-reading the same objects. The cache is capped by `max_cached_object_read_batch_payload_bytes`; set `HARUKI_ASSET_STUDIO_NATIVE_MAX_CACHED_READ_PAYLOAD_BYTES=0` to disable it or to another byte value to tune memory use.
+When buffer sizes are unknown and the caller wants strict caller-owned memory only, use the two-step size/into path instead: `haruki_assetstudio_context_read_objects_by_index_size_v1` plus `haruki_assetstudio_context_read_objects_by_index_into_v1`, or path-id `haruki_assetstudio_context_read_objects_size_v1` plus `haruki_assetstudio_context_read_objects_into_v1`. All these paths write per-item typed error messages into the same UTF-8 string pool. If some items fail and some succeed, `response.status` remains `0` while `response.error_code` is `HARUKI_ASSETSTUDIO_OBJECT_READ_ERROR_PARTIAL_FAILURE`; inspect each item status/error code before using its payload range. If all items fail with the same reason, the batch returns that concrete error code instead of a generic internal error. When `supports_cached_object_read_size_v1` is true, the two-step size path keeps the most recent matching size result inside the context so the following `into` call can avoid re-reading the same objects. The cache is capped by `max_cached_object_read_batch_payload_bytes`; set `HARUKI_ASSET_STUDIO_NATIVE_MAX_CACHED_READ_PAYLOAD_BYTES=0` to disable it or to another byte value to tune memory use.
 
-`haruki_assetstudio_context_read_objects_v2` and `haruki_assetstudio_context_read_objects_v3` remain compatibility typed paths when a caller prefers library-owned buffers. They now use the same Core payload writer path as the caller-owned read APIs. v3 additionally returns one `result_handle` that owns the metadata buffer and payload buffer together.
+`haruki_assetstudio_context_read_objects_v1` and `haruki_assetstudio_context_read_objects_handle_v1` remain compatibility typed paths when a caller prefers library-owned buffers. They now use the same Core payload writer path as the caller-owned read APIs. v1 additionally returns one `result_handle` that owns the metadata buffer and payload buffer together.
 
-Direct v6/v7 reads can write Core output into caller/native memory through the writer path. Payload kind handling is:
+Direct v1/v1 reads can write Core output into caller/native memory through the writer path. Payload kind handling is:
 
 - `native_streaming_payload_kinds` / `source_streaming_payload_kinds`: source-level streaming with no full managed payload buffer. Current kinds: `raw`, `audio_raw`, `video_raw`.
 - `resident_buffer_payload_kinds`: direct write from arrays already resident on parsed objects. Current kinds: `movie_ogv`, `font`, `text_bytes`.
 - `generated_streaming_payload_kinds`: generated output is streamed to the caller/native buffer instead of first becoming a full managed `byte[]`. Current kinds: `shader_text`, `typetree_json`, `mesh_obj`, `image_raw_rgba`, `image_array_bundle_raw_rgba`. `shader_text` is mixed: uncompressed shaders without subprogram blobs write the original script bytes directly after the header, while compressed/subprogram shaders still generate converted text. Texture array bundles use a counting pass before the write pass so entry lengths can be emitted without retaining each raw RGBA layer as a managed array.
 - `temp_file_intermediate_payload_kinds`: output is streamed from temporary files into the caller/native buffer. Current kind: `animator_bundle_fbx`.
-- `managed_intermediate_payload_kinds`: still use full managed payload arrays before the final direct write. This is currently empty for the direct v6/v7 writer path.
+- `managed_intermediate_payload_kinds`: still use full managed payload arrays before the final direct write. This is currently empty for the direct v1/v1 writer path.
 
 FBX/animator export still uses a temporary directory internally, but the FFI bundle pack streams those files to the payload writer. FFI image reads always return raw RGBA IR; final image encoding is handled by the Rust caller.
 
-v3 uses the indexed object sizes to reserve an initial native payload capacity before reading the batch. This is a performance hint that reduces reallocations; callers should still trust only `response.payload_len` for the valid byte range.
+v1 uses the indexed object sizes to reserve an initial native payload capacity before reading the batch. This is a performance hint that reduces reallocations; callers should still trust only `response.payload_len` for the valid byte range.
 
-With object table ABI v3, `haruki_assetstudio_asset_object` includes:
+With object table ABI v1, `haruki_assetstudio_asset_object` includes:
 
 - `estimated_payload_capacity`: recommended caller-owned payload buffer capacity for the default direct read path.
 - `raw_payload_capacity`, `image_payload_capacity`, `text_payload_capacity`: recommended capacity for those payload families when non-zero.
@@ -70,7 +70,7 @@ With object table ABI v3, `haruki_assetstudio_asset_object` includes:
 
 Capacity hints are not a correctness contract. Direct read responses remain authoritative: use `payload_len` for valid bytes, and grow/retry on `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`.
 
-Texture decoding depends on the platform native `Texture2DDecoderNative` library. NativeAOT publish copies the current RID dependency next to `HarukiAssetStudioFFI` by default. External packagers should keep that file beside the FFI library or set `HARUKI_ASSET_STUDIO_NATIVE_LIBRARY_PATH` to a dependency file, dependency directory, or path-list. `capabilities_v2.supports_native_dependency_resolver` exposes the resolver contract for SDK diagnostics.
+Texture decoding depends on the platform native `Texture2DDecoderNative` library. NativeAOT publish copies the current RID dependency next to `HarukiAssetStudioFFI` by default. External packagers should keep that file beside the FFI library or set `HARUKI_ASSET_STUDIO_NATIVE_LIBRARY_PATH` to a dependency file, dependency directory, or path-list. `capabilities_v1.supports_native_dependency_resolver` exposes the resolver contract for SDK diagnostics.
 
 ## Status And Errors
 
@@ -108,10 +108,10 @@ haruki_assetstudio_context_open_request request = {
   .reserved = 0
 };
 haruki_assetstudio_context_open_response response = {0};
-int rc = haruki_assetstudio_context_open_v2(&request, &response);
+int rc = haruki_assetstudio_context_open_v1(&request, &response);
 ```
 
-Typed list v3 request:
+Typed list v1 request:
 
 ```c
 haruki_assetstudio_object_list_request request = {
@@ -125,10 +125,10 @@ haruki_assetstudio_object_list_request request = {
   .reserved = 0
 };
 haruki_assetstudio_object_table size = {0};
-int size_rc = haruki_assetstudio_context_list_objects_size_v3(&request, &size);
+int size_rc = haruki_assetstudio_context_list_objects_size_v1(&request, &size);
 uint8_t *buffer = malloc((size_t)size.buffer_len);
-haruki_assetstudio_object_list_into_request_v3 into = {
-  .struct_size = sizeof(haruki_assetstudio_object_list_into_request_v3),
+haruki_assetstudio_object_list_into_request_v1 into = {
+  .struct_size = sizeof(haruki_assetstudio_object_list_into_request_v1),
   .context_id = context_id,
   .offset = request.offset,
   .limit = request.limit,
@@ -140,7 +140,7 @@ haruki_assetstudio_object_list_into_request_v3 into = {
   .buffer_len = size.buffer_len
 };
 haruki_assetstudio_object_table table = {0};
-int rc = haruki_assetstudio_context_list_objects_into_v3(&into, &table);
+int rc = haruki_assetstudio_context_list_objects_into_v1(&into, &table);
 /* table.objects points into caller-owned buffer; string offsets are relative to table.string_data. */
 free(buffer);
 ```
@@ -167,37 +167,37 @@ int lookup_rc = haruki_assetstudio_context_lookup_objects_v1(&lookup, &lookup_ta
 haruki_assetstudio_free_buffer(lookup_table.buffer);
 ```
 
-Typed list v3 memory rules:
+Typed list v1 memory rules:
 
-- `size_v3` fills `buffer_len` with the required contiguous table bytes and `string_data_len` with the UTF-8 string pool bytes.
-- `into_v3` writes both `table.objects` and `table.string_data` into the caller-owned `request.buffer`.
-- Do not call `haruki_assetstudio_free_buffer` for list v3 output buffers.
-- If the provided buffer is too small, `into_v3` returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`/`8` and leaves `objects`/`string_data` unset.
+- `size_v1` fills `buffer_len` with the required contiguous table bytes and `string_data_len` with the UTF-8 string pool bytes.
+- `into_v1` writes both `table.objects` and `table.string_data` into the caller-owned `request.buffer`.
+- Do not call `haruki_assetstudio_free_buffer` for list v1 output buffers.
+- If the provided buffer is too small, `into_v1` returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`/`8` and leaves `objects`/`string_data` unset.
 - `table.objects[i]` is valid while `table.buffer` is alive.
 - Every string field is `(offset, len)` into `table.string_data`; offsets are byte offsets, and strings are UTF-8 without null terminators.
 - Empty strings have `len == 0`; callers should ignore the offset in that case.
 - `table.next_offset == -1` means the page is complete. Otherwise pass `next_offset` into the next request.
 - On failure, `table.status` and `table.error_code` mirror the stable native return code, and ABI/schema fields are still filled when `table` itself is writable.
 
-Typed list v2 memory rules:
+Typed list v1 memory rules:
 
 - `table.buffer` owns both `table.objects` and `table.string_data`.
 - Release `table.buffer` exactly once with `haruki_assetstudio_free_buffer`; do not free `objects` or `string_data` separately.
 
-Typed batch read requests use arrays of `haruki_assetstudio_object_read_item_request`. Prefer by-index direct retry v7 after listing; use path-id direct retry v7 when the caller does not have a table index.
+Typed batch read requests use arrays of `haruki_assetstudio_object_read_item_request`. Prefer by-index direct retry v1 after listing; use path-id direct retry v1 when the caller does not have a table index.
 
-Typed batch read v4 memory rules:
+Typed batch read v1 memory rules:
 
-- Set `request.struct_size` to `sizeof(haruki_assetstudio_object_read_batch_request_v4)` for `size_v4`.
+- Set `request.struct_size` to `sizeof(haruki_assetstudio_object_read_batch_request_v1)` for `size_v1`.
 - Set every `reserved` field to `0`.
 - Allocate `items_buffer` with at least `size_response.required_items_buffer_len` bytes and `payload` with at least `size_response.required_payload_len` bytes.
-- Set `into_request.struct_size` to `sizeof(haruki_assetstudio_object_read_batch_into_request_v4)` for `into_v4`.
+- Set `into_request.struct_size` to `sizeof(haruki_assetstudio_object_read_batch_into_request_v1)` for `into_v1`.
 - `into_response.items` and `into_response.string_data` point inside the caller-owned `items_buffer`; `into_response.payload` points to the caller-owned payload buffer.
-- Every v4 item string field is `(offset, len)` into `into_response.string_data`, including `error_message_offset/error_message_len` for failed items.
-- If a provided buffer is too small, `into_v4` returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`/`8` and fills `required_items_buffer_len`, `required_string_data_len`, and `required_payload_len` without writing item or payload data.
-- Do not call `haruki_assetstudio_result_free` or `haruki_assetstudio_free_buffer` for v4 output buffers.
+- Every v1 item string field is `(offset, len)` into `into_response.string_data`, including `error_message_offset/error_message_len` for failed items.
+- If a provided buffer is too small, `into_v1` returns `HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL`/`8` and fills `required_items_buffer_len`, `required_string_data_len`, and `required_payload_len` without writing item or payload data.
+- Do not call `haruki_assetstudio_result_free` or `haruki_assetstudio_free_buffer` for v1 output buffers.
 
-Typed batch read v3 memory rules:
+Typed batch read v1 memory rules:
 
 - `response.result_handle` owns `response.items_buffer` and `response.payload`.
 - Release `response.result_handle` exactly once with `haruki_assetstudio_result_free`.
@@ -208,7 +208,7 @@ Typed batch read v3 memory rules:
 
 ## Rust SDK Crate
 
-The Rust wrapper lives in `AssetStudioFFI/rust/haruki-assetstudio`. It loads the native library with `libloading`, validates typed ABI struct sizes through `haruki_assetstudio_abi_layout_v2`, exposes typed capabilities, manages context close through RAII, lists and looks up objects through caller-owned table buffers, and reads objects by either path id or stable list index through direct retry v7. `ObjectReadResult` owns copied payload bytes plus per-item metadata (`payload_kind`, `suggested_extension`, offsets, lengths, and error fields), and `payload_for(item)` returns the item slice with bounds checks.
+The Rust wrapper lives in `AssetStudioFFI/rust/haruki-assetstudio`. It loads the native library with `libloading`, validates typed ABI struct sizes through `haruki_assetstudio_abi_layout_v1`, exposes typed capabilities, manages context close through RAII, lists and looks up objects through caller-owned table buffers, and reads objects by either path id or stable list index through direct retry v1. `ObjectReadResult` owns copied payload bytes plus per-item metadata (`payload_kind`, `suggested_extension`, offsets, lengths, and error fields), and `payload_for(item)` returns the item slice with bounds checks.
 
 ```bash
 cargo run --manifest-path AssetStudioFFI/rust/haruki-assetstudio/Cargo.toml \

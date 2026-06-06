@@ -50,31 +50,31 @@ type ReadByIndexRetryFn = unsafe extern "C" fn(
 ) -> i32;
 
 const FFI_ABI_VERSION: c_int = 1;
-const FFI_SCHEMA_VERSION: c_int = 2;
-const FFI_LAYOUT_VERSION: c_int = 2;
+const FFI_SCHEMA_VERSION: c_int = 1;
+const FFI_LAYOUT_VERSION: c_int = 1;
 const FFI_CONTEXT_ABI_VERSION: c_int = 1;
-const FFI_OBJECT_TABLE_ABI_VERSION: c_int = 3;
-const FFI_OBJECT_TABLE_INTO_ABI_VERSION: c_int = 3;
+const FFI_OBJECT_TABLE_ABI_VERSION: c_int = 1;
+const FFI_OBJECT_TABLE_INTO_ABI_VERSION: c_int = 1;
 const FFI_OBJECT_READ_BATCH_ABI_VERSION: c_int = 1;
 const FFI_OBJECT_READ_BATCH_INTO_ABI_VERSION: c_int = 1;
 const FFI_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION: c_int = 1;
 
-const SYMBOL_CAPABILITIES: &[u8] = b"haruki_assetstudio_capabilities_v2";
-const SYMBOL_ABI_LAYOUT: &[u8] = b"haruki_assetstudio_abi_layout_v2";
+const SYMBOL_CAPABILITIES: &[u8] = b"haruki_assetstudio_capabilities_v1";
+const SYMBOL_ABI_LAYOUT: &[u8] = b"haruki_assetstudio_abi_layout_v1";
 const SYMBOL_FREE_BUFFER: &[u8] = b"haruki_assetstudio_free_buffer";
 const SYMBOL_RESULT_FREE: &[u8] = b"haruki_assetstudio_result_free";
-const SYMBOL_CONTEXT_OPEN: &[u8] = b"haruki_assetstudio_context_open_v2";
-const SYMBOL_CONTEXT_CLOSE: &[u8] = b"haruki_assetstudio_context_close_v2";
-const SYMBOL_CONTEXT_LIST_OBJECTS_SIZE: &[u8] = b"haruki_assetstudio_context_list_objects_size_v3";
-const SYMBOL_CONTEXT_LIST_OBJECTS_INTO: &[u8] = b"haruki_assetstudio_context_list_objects_into_v3";
+const SYMBOL_CONTEXT_OPEN: &[u8] = b"haruki_assetstudio_context_open_v1";
+const SYMBOL_CONTEXT_CLOSE: &[u8] = b"haruki_assetstudio_context_close_v1";
+const SYMBOL_CONTEXT_LIST_OBJECTS_SIZE: &[u8] = b"haruki_assetstudio_context_list_objects_size_v1";
+const SYMBOL_CONTEXT_LIST_OBJECTS_INTO: &[u8] = b"haruki_assetstudio_context_list_objects_into_v1";
 const SYMBOL_CONTEXT_LOOKUP_OBJECTS_SIZE: &[u8] =
-    b"haruki_assetstudio_context_lookup_objects_size_v2";
+    b"haruki_assetstudio_context_lookup_objects_size_v1";
 const SYMBOL_CONTEXT_LOOKUP_OBJECTS_INTO: &[u8] =
-    b"haruki_assetstudio_context_lookup_objects_into_v2";
+    b"haruki_assetstudio_context_lookup_objects_into_v1";
 const SYMBOL_CONTEXT_READ_OBJECTS_DIRECT_RETRY: &[u8] =
-    b"haruki_assetstudio_context_read_objects_direct_retry_v7";
+    b"haruki_assetstudio_context_read_objects_direct_retry_v1";
 const SYMBOL_CONTEXT_READ_OBJECTS_BY_INDEX_DIRECT_RETRY: &[u8] =
-    b"haruki_assetstudio_context_read_objects_by_index_direct_retry_v7";
+    b"haruki_assetstudio_context_read_objects_by_index_direct_retry_v1";
 
 pub struct AssetStudioLibrary {
     inner: Arc<Native>,
@@ -195,9 +195,9 @@ impl Native {
                 rust: size_of::<CapabilitiesResponse>(),
             });
         }
-        check_version("capabilities_v2 abi", response.abi_version, FFI_ABI_VERSION)?;
+        check_version("capabilities_v1 abi", response.abi_version, FFI_ABI_VERSION)?;
         check_version(
-            "capabilities_v2 schema",
+            "capabilities_v1 schema",
             response.schema_version,
             FFI_SCHEMA_VERSION,
         )?;
@@ -245,14 +245,14 @@ impl Native {
             layout.struct_size,
             "haruki_assetstudio_abi_layout_response",
         )?;
-        check_version("abi_layout_v2 abi", layout.abi_version, FFI_ABI_VERSION)?;
+        check_version("abi_layout_v1 abi", layout.abi_version, FFI_ABI_VERSION)?;
         check_version(
-            "abi_layout_v2 schema",
+            "abi_layout_v1 schema",
             layout.schema_version,
             FFI_SCHEMA_VERSION,
         )?;
         check_version(
-            "abi_layout_v2 layout",
+            "abi_layout_v1 layout",
             layout.layout_version,
             FFI_LAYOUT_VERSION,
         )?;
@@ -271,12 +271,12 @@ impl Native {
         check_size::<ObjectTable>(layout.object_table, "haruki_assetstudio_object_table")?;
         check_size::<AssetObject>(layout.asset_object, "haruki_assetstudio_asset_object")?;
         check_size::<ObjectReadBatchIntoRequest>(
-            layout.object_read_batch_into_request_v4,
-            "haruki_assetstudio_object_read_batch_into_request_v4",
+            layout.object_read_batch_into_request_v1,
+            "haruki_assetstudio_object_read_batch_into_request_v1",
         )?;
         check_size::<ObjectReadBatchRetryResponse>(
-            layout.object_read_batch_retry_response_v7,
-            "haruki_assetstudio_object_read_batch_retry_response_v7",
+            layout.object_read_batch_retry_response_v1,
+            "haruki_assetstudio_object_read_batch_retry_response_v1",
         )?;
         Ok(())
     }
@@ -726,13 +726,13 @@ struct AbiLayoutResponse {
     limits_response: c_int,
     capabilities_response: c_int,
     object_list_request: c_int,
-    object_list_into_request_v3: c_int,
+    object_list_into_request_v1: c_int,
     object_table: c_int,
     asset_object: c_int,
     object_read_item_request: c_int,
-    object_read_batch_into_request_v4: c_int,
-    object_read_item_response_v4: c_int,
-    object_read_batch_retry_response_v7: c_int,
+    object_read_batch_into_request_v1: c_int,
+    object_read_item_response_v1: c_int,
+    object_read_batch_retry_response_v1: c_int,
     flags: c_int,
     reserved: c_int,
 }

@@ -20,7 +20,7 @@ namespace AssetStudioFFI;
 public static unsafe class NativeExports
 {
     private const int FfiAbiVersion = 1;
-    private const int FfiSchemaVersion = 2;
+    private const int FfiSchemaVersion = 1;
     internal const int FfiAbiVersionForEnvelope = FfiAbiVersion;
     internal const int FfiSchemaVersionForEnvelope = FfiSchemaVersion;
     private static readonly NativeDiagnostics Diagnostics = NativeDiagnostics.CreateFromEnvironment();
@@ -31,15 +31,15 @@ public static unsafe class NativeExports
     private const uint PayloadBundleMagic = 0x42504148; // HAPB
     private const ushort PayloadBundleVersion = 2;
     private const ushort PayloadBundleHeaderLength = 20;
-    private const int FfiLayoutVersion = 2;
-    private const int FfiObjectTableAbiVersion = 3;
-    private const int FfiObjectTableIntoAbiVersion = 3;
+    private const int FfiLayoutVersion = 1;
+    private const int FfiObjectTableAbiVersion = 1;
+    private const int FfiObjectTableIntoAbiVersion = 1;
     private const int FfiObjectReadAbiVersion = 1;
     private const int FfiObjectReadBatchAbiVersion = 1;
     private const int FfiObjectReadBatchHandleAbiVersion = 1;
     private const int FfiObjectReadBatchIntoAbiVersion = 1;
     private const int FfiObjectReadBatchByIndexAbiVersion = 1;
-    private const int FfiObjectReadBatchDirectIntoAbiVersion = 2;
+    private const int FfiObjectReadBatchDirectIntoAbiVersion = 1;
     private const int FfiObjectReadBatchDirectRetryAbiVersion = 1;
     private const int FfiObjectLookupAbiVersion = 1;
     private const int FfiObjectLookupIntoAbiVersion = 1;
@@ -71,8 +71,8 @@ public static unsafe class NativeExports
             $"image_guard={AssetStudio.ImageSharpNativeAotGuard.Enabled}");
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_capabilities_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int CapabilitiesV2(NativeCapabilitiesResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_capabilities_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int CapabilitiesV1(NativeCapabilitiesResponse* response)
     {
         if (response == null)
         {
@@ -118,8 +118,8 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_abi_layout_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int AbiLayoutV2(NativeAbiLayoutResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_abi_layout_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int AbiLayoutV1(NativeAbiLayoutResponse* response)
     {
         if (response == null)
         {
@@ -140,13 +140,13 @@ public static unsafe class NativeExports
         response->LimitsResponse = sizeof(NativeLimitsResponse);
         response->CapabilitiesResponse = sizeof(NativeCapabilitiesResponse);
         response->ObjectListRequest = sizeof(NativeObjectListRequest);
-        response->ObjectListIntoRequestV3 = sizeof(NativeObjectListIntoRequest);
+        response->ObjectListIntoRequestV1 = sizeof(NativeObjectListIntoRequest);
         response->ObjectTable = sizeof(NativeObjectTable);
         response->AssetObject = sizeof(NativeAssetObject);
         response->ObjectReadItemRequest = sizeof(NativeObjectReadItemRequest);
-        response->ObjectReadBatchIntoRequestV4 = sizeof(NativeObjectReadBatchIntoRequestV4);
-        response->ObjectReadItemResponseV4 = sizeof(NativeObjectReadItemResponseV4);
-        response->ObjectReadBatchRetryResponseV7 = sizeof(NativeObjectReadBatchRetryResponseV7);
+        response->ObjectReadBatchIntoRequestV1 = sizeof(NativeObjectReadBatchIntoRequestV1);
+        response->ObjectReadItemResponseV1 = sizeof(NativeObjectReadItemResponseV1);
+        response->ObjectReadBatchRetryResponseV1 = sizeof(NativeObjectReadBatchRetryResponseV1);
         response->Flags = 0;
         return 0;
     }
@@ -189,8 +189,8 @@ public static unsafe class NativeExports
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.TextureFormat))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.GraphicsFormat))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.ClassIDType))]
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_open_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextOpenV2(NativeContextOpenRequest* request, NativeContextOpenResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_open_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextOpenV1(NativeContextOpenRequest* request, NativeContextOpenResponse* response)
     {
         if (response == null)
         {
@@ -229,7 +229,7 @@ public static unsafe class NativeExports
             var outputDir = ReadNativeUtf8(request->OutputDirUtf8, request->OutputDirUtf8Len, defaultValue: "");
             var assetTypes = ParseNativeAssetTypes(request->AssetTypesCsvUtf8, request->AssetTypesCsvUtf8Len);
 
-            var operationId = Diagnostics.Begin("context_open_v2", inputPath);
+            var operationId = Diagnostics.Begin("context_open_v1", inputPath);
             if (ActiveSessionCount() >= MaxNativeActiveContexts)
             {
                 response->Status = 5;
@@ -276,12 +276,12 @@ public static unsafe class NativeExports
                 out _,
                 out _,
                 out response->BufferLen);
-            Diagnostics.End(operationId, "context_open_v2", stopwatch.ElapsedMilliseconds, $"assets={totalAssetCount} object_index={session.ObjectIndexCount}");
+            Diagnostics.End(operationId, "context_open_v1", stopwatch.ElapsedMilliseconds, $"assets={totalAssetCount} object_index={session.ObjectIndexCount}");
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_open_v2", ex);
+            Diagnostics.Exception("context_open_v1", ex);
             ResetProcessLocalState();
             response->Status = 2;
             response->ErrorCode = NativeContextErrorCode.InvalidRequest;
@@ -290,7 +290,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_open_v2", ex);
+            Diagnostics.Exception("context_open_v1", ex);
             ResetProcessLocalState();
             response->Status = 100;
             response->ErrorCode = NativeContextErrorCode.InternalError;
@@ -308,8 +308,8 @@ public static unsafe class NativeExports
         response->ContextAbiVersion = FfiContextAbiVersion;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_close_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextCloseV2(NativeContextCloseRequest* request, NativeContextCloseResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_close_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextCloseV1(NativeContextCloseRequest* request, NativeContextCloseResponse* response)
     {
         if (response == null)
         {
@@ -367,7 +367,7 @@ public static unsafe class NativeExports
             {
                 ReleaseResultArenasForContext(request->ContextId);
             }
-            Diagnostics.Event(operationId, "context_closed_v2", $"duration_ms={stopwatch.ElapsedMilliseconds}");
+            Diagnostics.Event(operationId, "context_closed_v1", $"duration_ms={stopwatch.ElapsedMilliseconds}");
             response->Status = 0;
             response->ErrorCode = NativeContextErrorCode.None;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -375,7 +375,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_close_v2", ex);
+            Diagnostics.Exception("context_close_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeContextErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -392,8 +392,8 @@ public static unsafe class NativeExports
         response->ContextAbiVersion = FfiContextAbiVersion;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextListObjectsV2(NativeObjectListRequest* request, NativeObjectTable* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextListObjectsV1(NativeObjectListRequest* request, NativeObjectTable* response)
     {
         if (response == null)
         {
@@ -476,7 +476,7 @@ public static unsafe class NativeExports
                 response->DurationMs = stopwatch.ElapsedMilliseconds;
                 Diagnostics.Event(
                     context.OperationId,
-                    "context_list_objects_v2",
+                    "context_list_objects_v1",
                     $"offset={offset} limit={limit} returned={page.Length}/{totalCount}");
                 return 0;
             }
@@ -487,7 +487,7 @@ public static unsafe class NativeExports
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_list_objects_v2", ex);
+            Diagnostics.Exception("context_list_objects_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectTableErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -495,7 +495,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_list_objects_v2", ex);
+            Diagnostics.Exception("context_list_objects_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectTableErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -503,8 +503,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_size_v3", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextListObjectsSizeV3(NativeObjectListRequest* request, NativeObjectTable* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_size_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextListObjectsSizeV1(NativeObjectListRequest* request, NativeObjectTable* response)
     {
         if (response == null)
         {
@@ -528,13 +528,13 @@ public static unsafe class NativeExports
             response->BufferLen = RequiredObjectTableBufferLength(table.Page, response->StringDataLen);
             Diagnostics.Event(
                 table.Context.OperationId,
-                "context_list_objects_size_v3",
+                "context_list_objects_size_v1",
                 $"offset={table.Offset} limit={table.Limit} returned={table.Page.Length}/{table.TotalCount} buffer_len={response->BufferLen}");
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_list_objects_size_v3", ex);
+            Diagnostics.Exception("context_list_objects_size_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectTableErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -542,7 +542,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_list_objects_size_v3", ex);
+            Diagnostics.Exception("context_list_objects_size_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectTableErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -550,8 +550,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_into_v3", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextListObjectsIntoV3(NativeObjectListIntoRequest* request, NativeObjectTable* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextListObjectsIntoV1(NativeObjectListIntoRequest* request, NativeObjectTable* response)
     {
         if (response == null)
         {
@@ -623,13 +623,13 @@ public static unsafe class NativeExports
             response->DurationMs = stopwatch.ElapsedMilliseconds;
             Diagnostics.Event(
                 table.Context.OperationId,
-                "context_list_objects_into_v3",
+                "context_list_objects_into_v1",
                 $"offset={table.Offset} limit={table.Limit} returned={table.Page.Length}/{table.TotalCount} buffer_len={response->BufferLen}");
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_list_objects_into_v3", ex);
+            Diagnostics.Exception("context_list_objects_into_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectTableErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -637,7 +637,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_list_objects_into_v3", ex);
+            Diagnostics.Exception("context_list_objects_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectTableErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -721,8 +721,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_lookup_objects_size_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextLookupObjectsSizeV2(NativeObjectLookupRequest* request, NativeObjectTable* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_lookup_objects_size_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextLookupObjectsSizeV1(NativeObjectLookupRequest* request, NativeObjectTable* response)
     {
         if (response == null)
         {
@@ -746,13 +746,13 @@ public static unsafe class NativeExports
             response->BufferLen = RequiredObjectTableBufferLength(table.Page, response->StringDataLen);
             Diagnostics.Event(
                 table.Context.OperationId,
-                "context_lookup_objects_size_v2",
+                "context_lookup_objects_size_v1",
                 $"kind={lookupKind} offset={table.Offset} limit={table.Limit} returned={table.Page.Length}/{table.TotalCount} buffer_len={response->BufferLen}");
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_lookup_objects_size_v2", ex);
+            Diagnostics.Exception("context_lookup_objects_size_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectTableErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -760,7 +760,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_lookup_objects_size_v2", ex);
+            Diagnostics.Exception("context_lookup_objects_size_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectTableErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -768,8 +768,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_lookup_objects_into_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextLookupObjectsIntoV2(NativeObjectLookupIntoRequest* request, NativeObjectTable* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_lookup_objects_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextLookupObjectsIntoV1(NativeObjectLookupIntoRequest* request, NativeObjectTable* response)
     {
         if (response == null)
         {
@@ -845,13 +845,13 @@ public static unsafe class NativeExports
             response->DurationMs = stopwatch.ElapsedMilliseconds;
             Diagnostics.Event(
                 table.Context.OperationId,
-                "context_lookup_objects_into_v2",
+                "context_lookup_objects_into_v1",
                 $"kind={lookupKind} offset={table.Offset} limit={table.Limit} returned={table.Page.Length}/{table.TotalCount} buffer_len={response->BufferLen}");
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_lookup_objects_into_v2", ex);
+            Diagnostics.Exception("context_lookup_objects_into_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectTableErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -859,7 +859,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_lookup_objects_into_v2", ex);
+            Diagnostics.Exception("context_lookup_objects_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectTableErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1109,8 +1109,8 @@ public static unsafe class NativeExports
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.AnimationClip))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.FMODSoundType))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.AudioCompressionFormat))]
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_object_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectV2(NativeObjectReadRequest* request, NativeObjectReadResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_object_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectV1(NativeObjectReadRequest* request, NativeObjectReadResponse* response)
     {
         if (response == null)
         {
@@ -1183,7 +1183,7 @@ public static unsafe class NativeExports
                 response->TypeId = result.Asset.TypeId;
                 response->Size = result.Asset.Size;
                 response->DurationMs = stopwatch.ElapsedMilliseconds;
-                Diagnostics.Event(context.OperationId, "context_read_object_v2", $"path_id={request->PathId} kind={kind} payload_len={result.Payload.Length}");
+                Diagnostics.Event(context.OperationId, "context_read_object_v1", $"path_id={request->PathId} kind={kind} payload_len={result.Payload.Length}");
                 return 0;
             }
             finally
@@ -1193,7 +1193,7 @@ public static unsafe class NativeExports
         }
         catch (ArgumentException ex)
         {
-            Diagnostics.Exception("context_read_object_v2", ex);
+            Diagnostics.Exception("context_read_object_v1", ex);
             response->Status = 2;
             response->ErrorCode = NativeObjectReadErrorCode.InvalidRequest;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1201,7 +1201,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_object_v2", ex);
+            Diagnostics.Exception("context_read_object_v1", ex);
             response->Status = ClassifyReadStatus(ex);
             response->ErrorCode = ToNativeObjectReadErrorCode(ClassifyReadError(ex));
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1217,8 +1217,8 @@ public static unsafe class NativeExports
         response->ObjectReadAbiVersion = FfiObjectReadAbiVersion;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsV2(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponse* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsV1(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponse* response)
     {
         return ContextReadObjectsCore(request, response);
     }
@@ -1295,7 +1295,7 @@ public static unsafe class NativeExports
                 response->ReturnedCount = result.Reads.Count;
                 response->FailedCount = result.FailedCount;
                 response->DurationMs = stopwatch.ElapsedMilliseconds;
-                Diagnostics.Event(context.OperationId, "context_read_objects_v2", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1305,7 +1305,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_v2", ex);
+            Diagnostics.Exception("context_read_objects_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1325,8 +1325,8 @@ public static unsafe class NativeExports
         response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_v3", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsV3(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponseV3* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_handle_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsHandleV1(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponseV1* response)
     {
         if (response == null)
         {
@@ -1336,10 +1336,10 @@ public static unsafe class NativeExports
         return ContextReadObjectsHandleCore(request, response);
     }
 
-    private static int ContextReadObjectsHandleCore(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponseV3* response)
+    private static int ContextReadObjectsHandleCore(NativeObjectReadBatchRequest* request, NativeObjectReadBatchResponseV1* response)
     {
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchResponseV3(response);
+        InitializeNativeObjectReadBatchResponseV1(response);
         NativePayloadAppendStream? payload = null;
         byte* itemsBuffer = null;
         var registered = false;
@@ -1414,7 +1414,7 @@ public static unsafe class NativeExports
                     response->ResultHandle = RegisterResultArena(request->ContextId, response->ItemsBuffer, response->Payload);
                     registered = true;
                 }
-                Diagnostics.Event(context.OperationId, "context_read_objects_v3", $"count={request->Count} failed={failedCount} payload_len={response->PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_v1", $"count={request->Count} failed={failedCount} payload_len={response->PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1424,7 +1424,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_v3", ex);
+            Diagnostics.Exception("context_read_objects_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1453,7 +1453,7 @@ public static unsafe class NativeExports
         }
     }
 
-    private static void InitializeNativeObjectReadBatchResponseV3(NativeObjectReadBatchResponseV3* response)
+    private static void InitializeNativeObjectReadBatchResponseV1(NativeObjectReadBatchResponseV1* response)
     {
         *response = default;
         response->AbiVersion = FfiAbiVersion;
@@ -1462,8 +1462,8 @@ public static unsafe class NativeExports
         response->ObjectReadBatchHandleAbiVersion = FfiObjectReadBatchHandleAbiVersion;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_size_v4", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsSizeV4(NativeObjectReadBatchRequestV4* request, NativeObjectReadBatchSizeResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_size_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsSizeV1(NativeObjectReadBatchRequestV1* request, NativeObjectReadBatchSizeResponseV1* response)
     {
         if (response == null)
         {
@@ -1471,10 +1471,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchSizeResponseV4(response);
+        InitializeNativeObjectReadBatchSizeResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchRequestV4(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1505,7 +1505,7 @@ public static unsafe class NativeExports
                 response->StringDataLen = result.StringDataLen;
                 response->PayloadLen = result.PayloadLen;
                 response->DurationMs = stopwatch.ElapsedMilliseconds;
-                Diagnostics.Event(context.OperationId, "context_read_objects_size_v4", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_size_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1515,7 +1515,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_size_v4", ex);
+            Diagnostics.Exception("context_read_objects_size_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1523,8 +1523,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_into_v4", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsIntoV4(NativeObjectReadBatchIntoRequestV4* request, NativeObjectReadBatchIntoResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsIntoV1(NativeObjectReadBatchIntoRequestV1* request, NativeObjectReadBatchIntoResponseV1* response)
     {
         if (response == null)
         {
@@ -1532,10 +1532,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchIntoResponseV4(response);
+        InitializeNativeObjectReadBatchIntoResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchIntoRequestV4(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchIntoRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1566,7 +1566,7 @@ public static unsafe class NativeExports
                     return 8;
                 }
 
-                WriteObjectReadBatchItemsV4Into(
+                WriteObjectReadBatchItemsV1Into(
                     result.Reads,
                     request->ItemsBuffer,
                     result.ItemsBufferLen,
@@ -1585,7 +1585,7 @@ public static unsafe class NativeExports
                 response->Status = DetermineBatchStatus(result.Reads, result.FailedCount, request->Count);
                 response->ErrorCode = DetermineBatchErrorCode(result.Reads, result.FailedCount, request->Count);
                 context.ClearPendingReadBatch(signature);
-                Diagnostics.Event(context.OperationId, "context_read_objects_into_v4", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_into_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1595,7 +1595,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_into_v4", ex);
+            Diagnostics.Exception("context_read_objects_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1603,8 +1603,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_size_v5", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsByIndexSizeV5(NativeObjectReadBatchByIndexRequestV5* request, NativeObjectReadBatchSizeResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_size_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsByIndexSizeV1(NativeObjectReadBatchByIndexRequestV1* request, NativeObjectReadBatchSizeResponseV1* response)
     {
         if (response == null)
         {
@@ -1612,10 +1612,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchSizeResponseV4(response);
+        InitializeNativeObjectReadBatchSizeResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchByIndexRequestV5(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchByIndexRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1647,7 +1647,7 @@ public static unsafe class NativeExports
                 response->StringDataLen = result.StringDataLen;
                 response->PayloadLen = result.PayloadLen;
                 response->DurationMs = stopwatch.ElapsedMilliseconds;
-                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_size_v5", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_size_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1657,7 +1657,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_by_index_size_v5", ex);
+            Diagnostics.Exception("context_read_objects_by_index_size_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1665,8 +1665,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_into_v5", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsByIndexIntoV5(NativeObjectReadBatchByIndexIntoRequestV5* request, NativeObjectReadBatchIntoResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsByIndexIntoV1(NativeObjectReadBatchByIndexIntoRequestV1* request, NativeObjectReadBatchIntoResponseV1* response)
     {
         if (response == null)
         {
@@ -1674,10 +1674,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchIntoResponseV4(response);
+        InitializeNativeObjectReadBatchIntoResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchByIndexIntoRequestV5(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchByIndexIntoRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1708,7 +1708,7 @@ public static unsafe class NativeExports
                     return 8;
                 }
 
-                WriteObjectReadBatchItemsV4Into(
+                WriteObjectReadBatchItemsV1Into(
                     result.Reads,
                     request->ItemsBuffer,
                     result.ItemsBufferLen,
@@ -1727,7 +1727,7 @@ public static unsafe class NativeExports
                 response->Status = DetermineBatchStatus(result.Reads, result.FailedCount, request->Count);
                 response->ErrorCode = DetermineBatchErrorCode(result.Reads, result.FailedCount, request->Count);
                 context.ClearPendingReadBatch(signature);
-                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_into_v5", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_into_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1737,7 +1737,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_by_index_into_v5", ex);
+            Diagnostics.Exception("context_read_objects_by_index_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1745,8 +1745,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_direct_into_v6", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsDirectIntoV6(NativeObjectReadBatchIntoRequestV4* request, NativeObjectReadBatchIntoResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_direct_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsDirectIntoV1(NativeObjectReadBatchIntoRequestV1* request, NativeObjectReadBatchIntoResponseV1* response)
     {
         if (response == null)
         {
@@ -1754,10 +1754,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchIntoResponseV4(response);
+        InitializeNativeObjectReadBatchIntoResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchIntoRequestV4(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchIntoRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1786,7 +1786,7 @@ public static unsafe class NativeExports
                     return 8;
                 }
 
-                WriteObjectReadBatchItemsV4Into(
+                WriteObjectReadBatchItemsV1Into(
                     result.Reads,
                     request->ItemsBuffer,
                     result.ItemsBufferLen,
@@ -1804,7 +1804,7 @@ public static unsafe class NativeExports
                 response->PayloadLen = result.PayloadLen;
                 response->Status = DetermineBatchStatus(result.Reads, result.FailedCount, request->Count);
                 response->ErrorCode = DetermineBatchErrorCode(result.Reads, result.FailedCount, request->Count);
-                Diagnostics.Event(context.OperationId, "context_read_objects_direct_into_v6", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_direct_into_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1814,7 +1814,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_direct_into_v6", ex);
+            Diagnostics.Exception("context_read_objects_direct_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1822,8 +1822,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_direct_into_v6", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsByIndexDirectIntoV6(NativeObjectReadBatchByIndexIntoRequestV5* request, NativeObjectReadBatchIntoResponseV4* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_direct_into_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsByIndexDirectIntoV1(NativeObjectReadBatchByIndexIntoRequestV1* request, NativeObjectReadBatchIntoResponseV1* response)
     {
         if (response == null)
         {
@@ -1831,10 +1831,10 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchIntoResponseV4(response);
+        InitializeNativeObjectReadBatchIntoResponseV1(response);
         try
         {
-            var status = ValidateObjectReadBatchByIndexIntoRequestV5(request, stopwatch, out var context, response);
+            var status = ValidateObjectReadBatchByIndexIntoRequestV1(request, stopwatch, out var context, response);
             if (status != 0 || context == null)
             {
                 return status;
@@ -1863,7 +1863,7 @@ public static unsafe class NativeExports
                     return 8;
                 }
 
-                WriteObjectReadBatchItemsV4Into(
+                WriteObjectReadBatchItemsV1Into(
                     result.Reads,
                     request->ItemsBuffer,
                     result.ItemsBufferLen,
@@ -1881,7 +1881,7 @@ public static unsafe class NativeExports
                 response->PayloadLen = result.PayloadLen;
                 response->Status = DetermineBatchStatus(result.Reads, result.FailedCount, request->Count);
                 response->ErrorCode = DetermineBatchErrorCode(result.Reads, result.FailedCount, request->Count);
-                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_direct_into_v6", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_direct_into_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen}");
                 return response->Status;
             }
             finally
@@ -1891,7 +1891,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_by_index_direct_into_v6", ex);
+            Diagnostics.Exception("context_read_objects_by_index_direct_into_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1899,8 +1899,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_direct_retry_v7", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsDirectRetryV7(NativeObjectReadBatchIntoRequestV4* request, NativeObjectReadBatchRetryResponseV7* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_direct_retry_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsDirectRetryV1(NativeObjectReadBatchIntoRequestV1* request, NativeObjectReadBatchRetryResponseV1* response)
     {
         if (response == null)
         {
@@ -1908,12 +1908,12 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchRetryResponseV7(response);
-        NativeObjectReadBatchIntoResponseV4 validationResponse = default;
-        InitializeNativeObjectReadBatchIntoResponseV4(&validationResponse);
+        InitializeNativeObjectReadBatchRetryResponseV1(response);
+        NativeObjectReadBatchIntoResponseV1 validationResponse = default;
+        InitializeNativeObjectReadBatchIntoResponseV1(&validationResponse);
         try
         {
-            var status = ValidateObjectReadBatchIntoRequestV4(request, stopwatch, out var context, &validationResponse);
+            var status = ValidateObjectReadBatchIntoRequestV1(request, stopwatch, out var context, &validationResponse);
             CopyRetryValidationResponse(response, &validationResponse);
             if (status != 0 || context == null)
             {
@@ -1924,7 +1924,7 @@ public static unsafe class NativeExports
             {
                 using var sizingStream = new CountingWriteStream();
                 var result = BuildObjectReadBatchInto(context, request->Items, request->Count, sizingStream);
-                var rc = WriteObjectReadBatchRetryResultV7(
+                var rc = WriteObjectReadBatchRetryResultV1(
                     result,
                     request->ContextId,
                     request->Count,
@@ -1935,7 +1935,7 @@ public static unsafe class NativeExports
                     stopwatch,
                     response,
                     payloadStream => BuildObjectReadBatchInto(context, request->Items, request->Count, payloadStream));
-                Diagnostics.Event(context.OperationId, "context_read_objects_direct_retry_v7", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen} handle={response->ResultHandle}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_direct_retry_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen} handle={response->ResultHandle}");
                 return rc;
             }
             finally
@@ -1945,7 +1945,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_direct_retry_v7", ex);
+            Diagnostics.Exception("context_read_objects_direct_retry_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -1953,8 +1953,8 @@ public static unsafe class NativeExports
         }
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_direct_retry_v7", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjectsByIndexDirectRetryV7(NativeObjectReadBatchByIndexIntoRequestV5* request, NativeObjectReadBatchRetryResponseV7* response)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_by_index_direct_retry_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int ContextReadObjectsByIndexDirectRetryV1(NativeObjectReadBatchByIndexIntoRequestV1* request, NativeObjectReadBatchRetryResponseV1* response)
     {
         if (response == null)
         {
@@ -1962,12 +1962,12 @@ public static unsafe class NativeExports
         }
 
         var stopwatch = Stopwatch.StartNew();
-        InitializeNativeObjectReadBatchRetryResponseV7(response);
-        NativeObjectReadBatchIntoResponseV4 validationResponse = default;
-        InitializeNativeObjectReadBatchIntoResponseV4(&validationResponse);
+        InitializeNativeObjectReadBatchRetryResponseV1(response);
+        NativeObjectReadBatchIntoResponseV1 validationResponse = default;
+        InitializeNativeObjectReadBatchIntoResponseV1(&validationResponse);
         try
         {
-            var status = ValidateObjectReadBatchByIndexIntoRequestV5(request, stopwatch, out var context, &validationResponse);
+            var status = ValidateObjectReadBatchByIndexIntoRequestV1(request, stopwatch, out var context, &validationResponse);
             CopyRetryValidationResponse(response, &validationResponse);
             if (status != 0 || context == null)
             {
@@ -1978,7 +1978,7 @@ public static unsafe class NativeExports
             {
                 using var sizingStream = new CountingWriteStream();
                 var result = BuildObjectReadBatchByIndexInto(context, request->Items, request->Count, sizingStream);
-                var rc = WriteObjectReadBatchRetryResultV7(
+                var rc = WriteObjectReadBatchRetryResultV1(
                     result,
                     request->ContextId,
                     request->Count,
@@ -1989,7 +1989,7 @@ public static unsafe class NativeExports
                     stopwatch,
                     response,
                     payloadStream => BuildObjectReadBatchByIndexInto(context, request->Items, request->Count, payloadStream));
-                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_direct_retry_v7", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen} handle={response->ResultHandle}");
+                Diagnostics.Event(context.OperationId, "context_read_objects_by_index_direct_retry_v1", $"count={request->Count} failed={result.FailedCount} payload_len={result.PayloadLen} handle={response->ResultHandle}");
                 return rc;
             }
             finally
@@ -1999,7 +1999,7 @@ public static unsafe class NativeExports
         }
         catch (Exception ex)
         {
-            Diagnostics.Exception("context_read_objects_by_index_direct_retry_v7", ex);
+            Diagnostics.Exception("context_read_objects_by_index_direct_retry_v1", ex);
             response->Status = 100;
             response->ErrorCode = NativeObjectReadErrorCode.InternalError;
             response->DurationMs = stopwatch.ElapsedMilliseconds;
@@ -2007,20 +2007,20 @@ public static unsafe class NativeExports
         }
     }
 
-    private static void InitializeNativeObjectReadBatchSizeResponseV4(NativeObjectReadBatchSizeResponseV4* response)
+    private static void InitializeNativeObjectReadBatchSizeResponseV1(NativeObjectReadBatchSizeResponseV1* response)
     {
         *response = default;
-        response->StructSize = sizeof(NativeObjectReadBatchSizeResponseV4);
+        response->StructSize = sizeof(NativeObjectReadBatchSizeResponseV1);
         response->AbiVersion = FfiAbiVersion;
         response->SchemaVersion = FfiSchemaVersion;
         response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
         response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
     }
 
-    private static void InitializeNativeObjectReadBatchRetryResponseV7(NativeObjectReadBatchRetryResponseV7* response)
+    private static void InitializeNativeObjectReadBatchRetryResponseV1(NativeObjectReadBatchRetryResponseV1* response)
     {
         *response = default;
-        response->StructSize = sizeof(NativeObjectReadBatchRetryResponseV7);
+        response->StructSize = sizeof(NativeObjectReadBatchRetryResponseV1);
         response->AbiVersion = FfiAbiVersion;
         response->SchemaVersion = FfiSchemaVersion;
         response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
@@ -2028,7 +2028,7 @@ public static unsafe class NativeExports
         response->ObjectReadBatchDirectRetryAbiVersion = FfiObjectReadBatchDirectRetryAbiVersion;
     }
 
-    private static void CopyRetryValidationResponse(NativeObjectReadBatchRetryResponseV7* target, NativeObjectReadBatchIntoResponseV4* source)
+    private static void CopyRetryValidationResponse(NativeObjectReadBatchRetryResponseV1* target, NativeObjectReadBatchIntoResponseV1* source)
     {
         target->Status = source->Status;
         target->ErrorCode = source->ErrorCode;
@@ -2039,21 +2039,21 @@ public static unsafe class NativeExports
         target->DurationMs = source->DurationMs;
     }
 
-    private static void InitializeNativeObjectReadBatchIntoResponseV4(NativeObjectReadBatchIntoResponseV4* response)
+    private static void InitializeNativeObjectReadBatchIntoResponseV1(NativeObjectReadBatchIntoResponseV1* response)
     {
         *response = default;
-        response->StructSize = sizeof(NativeObjectReadBatchIntoResponseV4);
+        response->StructSize = sizeof(NativeObjectReadBatchIntoResponseV1);
         response->AbiVersion = FfiAbiVersion;
         response->SchemaVersion = FfiSchemaVersion;
         response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
         response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
     }
 
-    private static int ValidateObjectReadBatchRequestV4(
-        NativeObjectReadBatchRequestV4* request,
+    private static int ValidateObjectReadBatchRequestV1(
+        NativeObjectReadBatchRequestV1* request,
         Stopwatch stopwatch,
         out ActiveNativeContext? context,
-        NativeObjectReadBatchSizeResponseV4* response)
+        NativeObjectReadBatchSizeResponseV1* response)
     {
         context = null;
         if (request == null)
@@ -2066,7 +2066,7 @@ public static unsafe class NativeExports
 
         response->ContextId = request->ContextId;
         response->RequestedCount = Math.Max(0, request->Count);
-        if (request->StructSize < sizeof(NativeObjectReadBatchRequestV4))
+        if (request->StructSize < sizeof(NativeObjectReadBatchRequestV1))
         {
             response->Status = 2;
             response->ErrorCode = NativeObjectReadErrorCode.InvalidRequest;
@@ -2112,11 +2112,11 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    private static int ValidateObjectReadBatchIntoRequestV4(
-        NativeObjectReadBatchIntoRequestV4* request,
+    private static int ValidateObjectReadBatchIntoRequestV1(
+        NativeObjectReadBatchIntoRequestV1* request,
         Stopwatch stopwatch,
         out ActiveNativeContext? context,
-        NativeObjectReadBatchIntoResponseV4* response)
+        NativeObjectReadBatchIntoResponseV1* response)
     {
         context = null;
         if (request == null)
@@ -2129,7 +2129,7 @@ public static unsafe class NativeExports
 
         response->ContextId = request->ContextId;
         response->RequestedCount = Math.Max(0, request->Count);
-        if (request->StructSize < sizeof(NativeObjectReadBatchIntoRequestV4))
+        if (request->StructSize < sizeof(NativeObjectReadBatchIntoRequestV1))
         {
             response->Status = 2;
             response->ErrorCode = NativeObjectReadErrorCode.InvalidRequest;
@@ -2175,11 +2175,11 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    private static int ValidateObjectReadBatchByIndexRequestV5(
-        NativeObjectReadBatchByIndexRequestV5* request,
+    private static int ValidateObjectReadBatchByIndexRequestV1(
+        NativeObjectReadBatchByIndexRequestV1* request,
         Stopwatch stopwatch,
         out ActiveNativeContext? context,
-        NativeObjectReadBatchSizeResponseV4* response)
+        NativeObjectReadBatchSizeResponseV1* response)
     {
         context = null;
         if (request == null)
@@ -2192,7 +2192,7 @@ public static unsafe class NativeExports
 
         response->ContextId = request->ContextId;
         response->RequestedCount = Math.Max(0, request->Count);
-        if (request->StructSize < sizeof(NativeObjectReadBatchByIndexRequestV5))
+        if (request->StructSize < sizeof(NativeObjectReadBatchByIndexRequestV1))
         {
             response->Status = 2;
             response->ErrorCode = NativeObjectReadErrorCode.InvalidRequest;
@@ -2231,11 +2231,11 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    private static int ValidateObjectReadBatchByIndexIntoRequestV5(
-        NativeObjectReadBatchByIndexIntoRequestV5* request,
+    private static int ValidateObjectReadBatchByIndexIntoRequestV1(
+        NativeObjectReadBatchByIndexIntoRequestV1* request,
         Stopwatch stopwatch,
         out ActiveNativeContext? context,
-        NativeObjectReadBatchIntoResponseV4* response)
+        NativeObjectReadBatchIntoResponseV1* response)
     {
         context = null;
         if (request == null)
@@ -2248,7 +2248,7 @@ public static unsafe class NativeExports
 
         response->ContextId = request->ContextId;
         response->RequestedCount = Math.Max(0, request->Count);
-        if (request->StructSize < sizeof(NativeObjectReadBatchByIndexIntoRequestV5))
+        if (request->StructSize < sizeof(NativeObjectReadBatchByIndexIntoRequestV1))
         {
             response->Status = 2;
             response->ErrorCode = NativeObjectReadErrorCode.InvalidRequest;
@@ -2287,7 +2287,7 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    private static int WriteObjectReadBatchRetryResultV7(
+    private static int WriteObjectReadBatchRetryResultV1(
         NativeObjectReadBatchBuildResult result,
         long contextId,
         int requestedCount,
@@ -2296,7 +2296,7 @@ public static unsafe class NativeExports
         byte* callerPayload,
         long callerPayloadLen,
         Stopwatch stopwatch,
-        NativeObjectReadBatchRetryResponseV7* response,
+        NativeObjectReadBatchRetryResponseV1* response,
         Func<Stream, NativeObjectReadBatchBuildResult>? streamPayloads = null)
     {
         const int NativeItemsOwnership = 1;
@@ -2323,7 +2323,7 @@ public static unsafe class NativeExports
 
         try
         {
-            WriteObjectReadBatchItemsV4Into(
+            WriteObjectReadBatchItemsV1Into(
                 result.Reads,
                 itemsBuffer,
                 result.ItemsBufferLen,
@@ -2437,8 +2437,8 @@ public static unsafe class NativeExports
         }));
         nativeReads.Sort(static (left, right) => left.Index.CompareTo(right.Index));
 
-        var stringDataLen = EstimateObjectReadBatchStringBytesV4(nativeReads);
-        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV4)) + stringDataLen;
+        var stringDataLen = EstimateObjectReadBatchStringBytesV1(nativeReads);
+        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV1)) + stringDataLen;
         return new NativeObjectReadBatchBuildResult(
             nativeReads,
             batch.FailedCount + (count - options.Count),
@@ -2449,7 +2449,7 @@ public static unsafe class NativeExports
 
     private static NativeObjectReadBatchBuildResult BuildObjectReadBatchByIndex(
         ActiveNativeContext context,
-        NativeObjectReadItemByIndexRequestV5* items,
+        NativeObjectReadItemByIndexRequestV1* items,
         int count,
         bool capturePayloads)
     {
@@ -2509,8 +2509,8 @@ public static unsafe class NativeExports
         }));
         nativeReads.Sort(static (left, right) => left.Index.CompareTo(right.Index));
 
-        var stringDataLen = EstimateObjectReadBatchStringBytesV4(nativeReads);
-        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV4)) + stringDataLen;
+        var stringDataLen = EstimateObjectReadBatchStringBytesV1(nativeReads);
+        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV1)) + stringDataLen;
         return new NativeObjectReadBatchBuildResult(
             nativeReads,
             batch.FailedCount + (count - options.Count),
@@ -2568,8 +2568,8 @@ public static unsafe class NativeExports
         }));
         nativeReads.Sort(static (left, right) => left.Index.CompareTo(right.Index));
 
-        var stringDataLen = EstimateObjectReadBatchStringBytesV4(nativeReads);
-        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV4)) + stringDataLen;
+        var stringDataLen = EstimateObjectReadBatchStringBytesV1(nativeReads);
+        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV1)) + stringDataLen;
         return new NativeObjectReadBatchBuildResult(
             nativeReads,
             batch.FailedCount + (count - options.Count),
@@ -2580,7 +2580,7 @@ public static unsafe class NativeExports
 
     private static NativeObjectReadBatchBuildResult BuildObjectReadBatchByIndexInto(
         ActiveNativeContext context,
-        NativeObjectReadItemByIndexRequestV5* items,
+        NativeObjectReadItemByIndexRequestV1* items,
         int count,
         Stream payloadStream)
     {
@@ -2631,8 +2631,8 @@ public static unsafe class NativeExports
         }));
         nativeReads.Sort(static (left, right) => left.Index.CompareTo(right.Index));
 
-        var stringDataLen = EstimateObjectReadBatchStringBytesV4(nativeReads);
-        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV4)) + stringDataLen;
+        var stringDataLen = EstimateObjectReadBatchStringBytesV1(nativeReads);
+        var itemsBufferLen = AlignNativeObjectTableOffset(nativeReads.Count * sizeof(NativeObjectReadItemResponseV1)) + stringDataLen;
         return new NativeObjectReadBatchBuildResult(
             nativeReads,
             batch.FailedCount + (count - options.Count),
@@ -2787,7 +2787,7 @@ public static unsafe class NativeExports
         return new NativeObjectReadBatchSignature(unchecked((long)hash), bytes.ToArray());
     }
 
-    private static NativeObjectReadBatchSignature BuildObjectReadBatchByIndexSignature(NativeObjectReadItemByIndexRequestV5* items, int count)
+    private static NativeObjectReadBatchSignature BuildObjectReadBatchByIndexSignature(NativeObjectReadItemByIndexRequestV1* items, int count)
     {
         const ulong offsetBasis = 14695981039346656037UL;
         const ulong prime = 1099511628211UL;
@@ -2842,18 +2842,18 @@ public static unsafe class NativeExports
         return new NativeObjectReadBatchSignature(unchecked((long)hash), bytes.ToArray());
     }
 
-    private static void WriteObjectReadBatchItemsV4Into(
+    private static void WriteObjectReadBatchItemsV1Into(
         IReadOnlyList<NativeObjectReadItemBuildResult> reads,
         byte* buffer,
         long bufferLen,
-        out NativeObjectReadItemResponseV4* items,
+        out NativeObjectReadItemResponseV1* items,
         out byte* stringData,
         out int stringDataLen)
     {
         items = null;
         stringData = null;
-        stringDataLen = EstimateObjectReadBatchStringBytesV4(reads);
-        var stringDataOffset = AlignNativeObjectTableOffset(reads.Count * sizeof(NativeObjectReadItemResponseV4));
+        stringDataLen = EstimateObjectReadBatchStringBytesV1(reads);
+        var stringDataOffset = AlignNativeObjectTableOffset(reads.Count * sizeof(NativeObjectReadItemResponseV1));
         var requiredLen = stringDataOffset + stringDataLen;
         if (requiredLen == 0)
         {
@@ -2861,11 +2861,11 @@ public static unsafe class NativeExports
         }
         if (buffer == null || bufferLen < requiredLen)
         {
-            throw new ArgumentException("object read batch v4 items buffer is smaller than required metadata size");
+            throw new ArgumentException("object read batch v1 items buffer is smaller than required metadata size");
         }
 
         new Span<byte>(buffer, checked((int)requiredLen)).Clear();
-        items = (NativeObjectReadItemResponseV4*)buffer;
+        items = (NativeObjectReadItemResponseV1*)buffer;
         stringData = buffer + stringDataOffset;
         var stringCursor = 0;
         for (var index = 0; index < reads.Count; index++)
@@ -2886,7 +2886,7 @@ public static unsafe class NativeExports
         }
     }
 
-    private static int EstimateObjectReadBatchStringBytesV4(IEnumerable<NativeObjectReadItemBuildResult> reads)
+    private static int EstimateObjectReadBatchStringBytesV1(IEnumerable<NativeObjectReadItemBuildResult> reads)
     {
         long total = 0;
         foreach (var read in reads)
@@ -2896,7 +2896,7 @@ public static unsafe class NativeExports
             total += NativeStringByteCount(read.ErrorMessage);
             if (total > int.MaxValue)
             {
-                throw new InvalidOperationException("object read batch v4 string data is too large to address as one native buffer");
+                throw new InvalidOperationException("object read batch v1 string data is too large to address as one native buffer");
             }
         }
         return (int)total;
@@ -2910,11 +2910,11 @@ public static unsafe class NativeExports
         }
         if (payload == null)
         {
-            throw new ArgumentException("object read batch v4 payload buffer is null but payload is non-empty");
+            throw new ArgumentException("object read batch v1 payload buffer is null but payload is non-empty");
         }
         if (payloadLen > int.MaxValue)
         {
-            throw new InvalidOperationException("object read batch v4 payload is too large to address as one native buffer");
+            throw new InvalidOperationException("object read batch v1 payload is too large to address as one native buffer");
         }
 
         var span = new Span<byte>(payload, (int)payloadLen);
@@ -3838,7 +3838,7 @@ public static unsafe class NativeExports
 
         try
         {
-            var symbol = (IntPtr)(delegate* unmanaged[Cdecl]<NativeCapabilitiesResponse*, int>)&CapabilitiesV2;
+            var symbol = (IntPtr)(delegate* unmanaged[Cdecl]<NativeCapabilitiesResponse*, int>)&CapabilitiesV1;
             if (dladdr(symbol, out var info) == 0 || info.FileName == IntPtr.Zero)
             {
                 return null;
@@ -4150,13 +4150,13 @@ public struct NativeAbiLayoutResponse
     public int LimitsResponse;
     public int CapabilitiesResponse;
     public int ObjectListRequest;
-    public int ObjectListIntoRequestV3;
+    public int ObjectListIntoRequestV1;
     public int ObjectTable;
     public int AssetObject;
     public int ObjectReadItemRequest;
-    public int ObjectReadBatchIntoRequestV4;
-    public int ObjectReadItemResponseV4;
-    public int ObjectReadBatchRetryResponseV7;
+    public int ObjectReadBatchIntoRequestV1;
+    public int ObjectReadItemResponseV1;
+    public int ObjectReadBatchRetryResponseV1;
     public int Flags;
     public int Reserved;
 }
@@ -4182,7 +4182,7 @@ public unsafe struct NativeObjectReadBatchRequest
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchRequestV4
+public unsafe struct NativeObjectReadBatchRequestV1
 {
     public int StructSize;
     public long ContextId;
@@ -4193,7 +4193,7 @@ public unsafe struct NativeObjectReadBatchRequestV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchIntoRequestV4
+public unsafe struct NativeObjectReadBatchIntoRequestV1
 {
     public int StructSize;
     public long ContextId;
@@ -4208,7 +4208,7 @@ public unsafe struct NativeObjectReadBatchIntoRequestV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadItemByIndexRequestV5
+public unsafe struct NativeObjectReadItemByIndexRequestV1
 {
     public int ObjectIndex;
     public byte* KindUtf8;
@@ -4218,22 +4218,22 @@ public unsafe struct NativeObjectReadItemByIndexRequestV5
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchByIndexRequestV5
+public unsafe struct NativeObjectReadBatchByIndexRequestV1
 {
     public int StructSize;
     public long ContextId;
-    public NativeObjectReadItemByIndexRequestV5* Items;
+    public NativeObjectReadItemByIndexRequestV1* Items;
     public int Count;
     public int Flags;
     public int Reserved;
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchByIndexIntoRequestV5
+public unsafe struct NativeObjectReadBatchByIndexIntoRequestV1
 {
     public int StructSize;
     public long ContextId;
-    public NativeObjectReadItemByIndexRequestV5* Items;
+    public NativeObjectReadItemByIndexRequestV1* Items;
     public int Count;
     public int Flags;
     public int Reserved;
@@ -4276,7 +4276,7 @@ public unsafe struct NativeObjectReadBatchResponse
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchResponseV3
+public unsafe struct NativeObjectReadBatchResponseV1
 {
     public int AbiVersion;
     public int SchemaVersion;
@@ -4317,7 +4317,7 @@ public struct NativeObjectReadItemResponse
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct NativeObjectReadItemResponseV4
+public struct NativeObjectReadItemResponseV1
 {
     public int Index;
     public int Status;
@@ -4336,7 +4336,7 @@ public struct NativeObjectReadItemResponseV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct NativeObjectReadBatchSizeResponseV4
+public struct NativeObjectReadBatchSizeResponseV1
 {
     public int StructSize;
     public int AbiVersion;
@@ -4361,7 +4361,7 @@ public struct NativeObjectReadBatchSizeResponseV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchIntoResponseV4
+public unsafe struct NativeObjectReadBatchIntoResponseV1
 {
     public int StructSize;
     public int AbiVersion;
@@ -4374,7 +4374,7 @@ public unsafe struct NativeObjectReadBatchIntoResponseV4
     public int RequestedCount;
     public int ReturnedCount;
     public int FailedCount;
-    public NativeObjectReadItemResponseV4* Items;
+    public NativeObjectReadItemResponseV1* Items;
     public byte* StringData;
     public int StringDataLen;
     public byte* ItemsBuffer;
@@ -4390,7 +4390,7 @@ public unsafe struct NativeObjectReadBatchIntoResponseV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct NativeObjectReadBatchRetryResponseV7
+public unsafe struct NativeObjectReadBatchRetryResponseV1
 {
     public int StructSize;
     public int AbiVersion;
@@ -4404,7 +4404,7 @@ public unsafe struct NativeObjectReadBatchRetryResponseV7
     public int RequestedCount;
     public int ReturnedCount;
     public int FailedCount;
-    public NativeObjectReadItemResponseV4* Items;
+    public NativeObjectReadItemResponseV1* Items;
     public byte* StringData;
     public int StringDataLen;
     public byte* ItemsBuffer;

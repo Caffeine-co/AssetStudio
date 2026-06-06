@@ -14,12 +14,12 @@ extern "C" {
 #endif
 
 #define HARUKI_ASSETSTUDIO_ABI_VERSION 1
-#define HARUKI_ASSETSTUDIO_SCHEMA_VERSION 2
-#define HARUKI_ASSETSTUDIO_LAYOUT_VERSION 2
+#define HARUKI_ASSETSTUDIO_SCHEMA_VERSION 1
+#define HARUKI_ASSETSTUDIO_LAYOUT_VERSION 1
 #define HARUKI_ASSETSTUDIO_CONTEXT_ABI_VERSION 1
 #define HARUKI_ASSETSTUDIO_LIMITS_ABI_VERSION 1
-#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_ABI_VERSION 3
-#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_INTO_ABI_VERSION 3
+#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_INTO_ABI_VERSION 1
 #define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_ABI_VERSION 1
 #define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_INTO_ABI_VERSION 1
 #define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION 1
@@ -29,12 +29,12 @@ extern "C" {
  *
  * The public data path is typed structs only. Caller-provided buffers remain
  * caller-owned; library-owned list buffers are released with
- * haruki_assetstudio_free_buffer; typed batch read v3/v7 buffers may be owned
+ * haruki_assetstudio_free_buffer; typed batch read v1/v1 buffers may be owned
  * by a result handle and must be released with haruki_assetstudio_result_free.
  * haruki_assetstudio_free_string is retained only as an ABI compatibility
  * helper for callers that still resolve the symbol.
  *
- * haruki_assetstudio_capabilities_v2 reports the typed FFI feature flags.
+ * haruki_assetstudio_capabilities_v1 reports the typed FFI feature flags.
  * legacy_static_engine is false, max_active_contexts reports the active
  * context limit through haruki_assetstudio_limits_v1, and
  * per-context lifetime guards reject close/read races with a retryable
@@ -55,7 +55,7 @@ extern "C" {
  * counting pass for entry lengths; temp_file_intermediate kinds stream from
  * temporary files; managed_intermediate kinds still use full managed payloads
  * before the final FFI write.
- * Typed v2/v4 requests require struct_size=sizeof(request), flags=0 unless a
+ * Typed v1/v1 requests require struct_size=sizeof(request), flags=0 unless a
  * documented capability says otherwise, and reserved=0.
  */
 enum haruki_assetstudio_status {
@@ -247,13 +247,13 @@ typedef struct haruki_assetstudio_abi_layout_response {
     int32_t limits_response;
     int32_t capabilities_response;
     int32_t object_list_request;
-    int32_t object_list_into_request_v3;
+    int32_t object_list_into_request_v1;
     int32_t object_table;
     int32_t asset_object;
     int32_t object_read_item_request;
-    int32_t object_read_batch_into_request_v4;
-    int32_t object_read_item_response_v4;
-    int32_t object_read_batch_retry_response_v7;
+    int32_t object_read_batch_into_request_v1;
+    int32_t object_read_item_response_v1;
+    int32_t object_read_batch_retry_response_v1;
     int32_t flags;
     int32_t reserved;
 } haruki_assetstudio_abi_layout_response;
@@ -269,7 +269,7 @@ typedef struct haruki_assetstudio_object_list_request {
     int32_t reserved;
 } haruki_assetstudio_object_list_request;
 
-typedef struct haruki_assetstudio_object_list_into_request_v3 {
+typedef struct haruki_assetstudio_object_list_into_request_v1 {
     int32_t struct_size;
     int64_t context_id;
     int32_t offset;
@@ -280,7 +280,7 @@ typedef struct haruki_assetstudio_object_list_into_request_v3 {
     int32_t reserved;
     uint8_t *buffer;
     int64_t buffer_len;
-} haruki_assetstudio_object_list_into_request_v3;
+} haruki_assetstudio_object_list_into_request_v1;
 
 typedef struct haruki_assetstudio_object_lookup_request {
     int32_t struct_size;
@@ -297,7 +297,7 @@ typedef struct haruki_assetstudio_object_lookup_request {
     int32_t reserved;
 } haruki_assetstudio_object_lookup_request;
 
-typedef struct haruki_assetstudio_object_lookup_into_request_v2 {
+typedef struct haruki_assetstudio_object_lookup_into_request_v1 {
     int32_t struct_size;
     int64_t context_id;
     int32_t lookup_kind;
@@ -312,14 +312,14 @@ typedef struct haruki_assetstudio_object_lookup_into_request_v2 {
     int32_t reserved;
     uint8_t *buffer;
     int64_t buffer_len;
-} haruki_assetstudio_object_lookup_into_request_v2;
+} haruki_assetstudio_object_lookup_into_request_v1;
 
 typedef struct haruki_assetstudio_asset_object {
     int32_t index;
     int32_t type_id;
     int64_t path_id;
     int64_t size;
-    /* ABI v3. Suggested caller-owned payload capacities for direct reads.
+    /* ABI v1. Suggested caller-owned payload capacities for direct reads.
      * estimated_payload_capacity is the default auto/read-kind hint.
      * raw/image/text capacities are kind-specific hints when non-zero.
      * payload_capacity_flags: bit 0 = estimated, bit 1 = exact for default
@@ -385,13 +385,13 @@ typedef struct haruki_assetstudio_object_read_item_request {
     int32_t image_format_utf8_len;
 } haruki_assetstudio_object_read_item_request;
 
-typedef struct haruki_assetstudio_object_read_item_by_index_request_v5 {
+typedef struct haruki_assetstudio_object_read_item_by_index_request_v1 {
     int32_t object_index;
     const uint8_t *kind_utf8;
     int32_t kind_utf8_len;
     const uint8_t *image_format_utf8;
     int32_t image_format_utf8_len;
-} haruki_assetstudio_object_read_item_by_index_request_v5;
+} haruki_assetstudio_object_read_item_by_index_request_v1;
 
 typedef struct haruki_assetstudio_object_read_batch_request {
     int64_t context_id;
@@ -400,16 +400,16 @@ typedef struct haruki_assetstudio_object_read_batch_request {
     int32_t flags;
 } haruki_assetstudio_object_read_batch_request;
 
-typedef struct haruki_assetstudio_object_read_batch_request_v4 {
+typedef struct haruki_assetstudio_object_read_batch_request_v1 {
     int32_t struct_size;
     int64_t context_id;
     const haruki_assetstudio_object_read_item_request *items;
     int32_t count;
     int32_t flags;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_request_v4;
+} haruki_assetstudio_object_read_batch_request_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_into_request_v4 {
+typedef struct haruki_assetstudio_object_read_batch_into_request_v1 {
     int32_t struct_size;
     int64_t context_id;
     const haruki_assetstudio_object_read_item_request *items;
@@ -420,21 +420,21 @@ typedef struct haruki_assetstudio_object_read_batch_into_request_v4 {
     uint8_t *payload;
     int64_t payload_len;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_into_request_v4;
+} haruki_assetstudio_object_read_batch_into_request_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_by_index_request_v5 {
+typedef struct haruki_assetstudio_object_read_batch_by_index_request_v1 {
     int32_t struct_size;
     int64_t context_id;
-    const haruki_assetstudio_object_read_item_by_index_request_v5 *items;
+    const haruki_assetstudio_object_read_item_by_index_request_v1 *items;
     int32_t count;
     int32_t flags;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_by_index_request_v5;
+} haruki_assetstudio_object_read_batch_by_index_request_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_by_index_into_request_v5 {
+typedef struct haruki_assetstudio_object_read_batch_by_index_into_request_v1 {
     int32_t struct_size;
     int64_t context_id;
-    const haruki_assetstudio_object_read_item_by_index_request_v5 *items;
+    const haruki_assetstudio_object_read_item_by_index_request_v1 *items;
     int32_t count;
     int32_t flags;
     int32_t reserved;
@@ -442,7 +442,7 @@ typedef struct haruki_assetstudio_object_read_batch_by_index_into_request_v5 {
     int64_t items_buffer_len;
     uint8_t *payload;
     int64_t payload_len;
-} haruki_assetstudio_object_read_batch_by_index_into_request_v5;
+} haruki_assetstudio_object_read_batch_by_index_into_request_v1;
 
 typedef struct haruki_assetstudio_object_read_response {
     int32_t abi_version;
@@ -480,7 +480,7 @@ typedef struct haruki_assetstudio_object_read_item_response {
     int32_t suggested_extension_len;
 } haruki_assetstudio_object_read_item_response;
 
-typedef struct haruki_assetstudio_object_read_item_response_v4 {
+typedef struct haruki_assetstudio_object_read_item_response_v1 {
     int32_t index;
     int32_t status;
     int32_t error_code;
@@ -495,7 +495,7 @@ typedef struct haruki_assetstudio_object_read_item_response_v4 {
     int32_t suggested_extension_len;
     int32_t error_message_offset;
     int32_t error_message_len;
-} haruki_assetstudio_object_read_item_response_v4;
+} haruki_assetstudio_object_read_item_response_v1;
 
 typedef struct haruki_assetstudio_object_read_batch_response {
     int32_t abi_version;
@@ -517,7 +517,7 @@ typedef struct haruki_assetstudio_object_read_batch_response {
     int64_t duration_ms;
 } haruki_assetstudio_object_read_batch_response;
 
-typedef struct haruki_assetstudio_object_read_batch_response_v3 {
+typedef struct haruki_assetstudio_object_read_batch_handle_response_v1 {
     int32_t abi_version;
     int32_t schema_version;
     int32_t object_read_batch_abi_version;
@@ -537,9 +537,9 @@ typedef struct haruki_assetstudio_object_read_batch_response_v3 {
     int64_t duration_ms;
     int32_t object_read_batch_handle_abi_version;
     int64_t result_handle;
-} haruki_assetstudio_object_read_batch_response_v3;
+} haruki_assetstudio_object_read_batch_handle_response_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_size_response_v4 {
+typedef struct haruki_assetstudio_object_read_batch_size_response_v1 {
     int32_t struct_size;
     int32_t abi_version;
     int32_t schema_version;
@@ -560,9 +560,9 @@ typedef struct haruki_assetstudio_object_read_batch_size_response_v4 {
     int64_t duration_ms;
     int32_t flags;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_size_response_v4;
+} haruki_assetstudio_object_read_batch_size_response_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_into_response_v4 {
+typedef struct haruki_assetstudio_object_read_batch_into_response_v1 {
     int32_t struct_size;
     int32_t abi_version;
     int32_t schema_version;
@@ -574,7 +574,7 @@ typedef struct haruki_assetstudio_object_read_batch_into_response_v4 {
     int32_t requested_count;
     int32_t returned_count;
     int32_t failed_count;
-    haruki_assetstudio_object_read_item_response_v4 *items;
+    haruki_assetstudio_object_read_item_response_v1 *items;
     uint8_t *string_data;
     int32_t string_data_len;
     uint8_t *items_buffer;
@@ -587,9 +587,9 @@ typedef struct haruki_assetstudio_object_read_batch_into_response_v4 {
     int64_t duration_ms;
     int32_t flags;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_into_response_v4;
+} haruki_assetstudio_object_read_batch_into_response_v1;
 
-typedef struct haruki_assetstudio_object_read_batch_retry_response_v7 {
+typedef struct haruki_assetstudio_object_read_batch_retry_response_v1 {
     int32_t struct_size;
     int32_t abi_version;
     int32_t schema_version;
@@ -602,7 +602,7 @@ typedef struct haruki_assetstudio_object_read_batch_retry_response_v7 {
     int32_t requested_count;
     int32_t returned_count;
     int32_t failed_count;
-    haruki_assetstudio_object_read_item_response_v4 *items;
+    haruki_assetstudio_object_read_item_response_v1 *items;
     uint8_t *string_data;
     int32_t string_data_len;
     uint8_t *items_buffer;
@@ -621,10 +621,10 @@ typedef struct haruki_assetstudio_object_read_batch_retry_response_v7 {
     int32_t ownership_flags;
     int32_t flags;
     int32_t reserved;
-} haruki_assetstudio_object_read_batch_retry_response_v7;
+} haruki_assetstudio_object_read_batch_retry_response_v1;
 
 /*
- * Object table v3 memory layout:
+ * Object table v1 memory layout:
  *
  *   table.buffer owns table.objects and table.string_data.
  *   table.objects points to returned_count contiguous asset objects.
@@ -634,132 +634,132 @@ typedef struct haruki_assetstudio_object_read_batch_retry_response_v7 {
  *   Release table.buffer once with haruki_assetstudio_free_buffer.
  */
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_capabilities_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_capabilities_v1(
     haruki_assetstudio_capabilities_response *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_abi_layout_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_abi_layout_v1(
     haruki_assetstudio_abi_layout_response *response);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_limits_v1(
     haruki_assetstudio_limits_response *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_open_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_open_v1(
     const haruki_assetstudio_context_open_request *request,
     haruki_assetstudio_context_open_response *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_v1(
     const haruki_assetstudio_object_list_request *request,
     haruki_assetstudio_object_table *response);
 /*
- * Object list v3 is the preferred SDK path for caller-owned object table buffers.
+ * Object list v1 is the preferred SDK path for caller-owned object table buffers.
  *
- * First call haruki_assetstudio_context_list_objects_size_v3. The response uses
+ * First call haruki_assetstudio_context_list_objects_size_v1. The response uses
  * buffer_len as the required contiguous table byte count and string_data_len as
  * the UTF-8 string pool byte count; response.buffer/objects/string_data remain
  * null. Then allocate buffer_len bytes and call
- * haruki_assetstudio_context_list_objects_into_v3 with struct_size set to
- * sizeof(haruki_assetstudio_object_list_into_request_v3).
+ * haruki_assetstudio_context_list_objects_into_v1 with struct_size set to
+ * sizeof(haruki_assetstudio_object_list_into_request_v1).
  *
  * On success, response.buffer equals request.buffer. The caller owns that memory;
  * do not pass it to haruki_assetstudio_free_buffer. If the provided buffer is too
  * small, status/error_code are 8 and buffer_len contains the required size.
  */
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_size_v3(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_size_v1(
     const haruki_assetstudio_object_list_request *request,
     haruki_assetstudio_object_table *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_into_v3(
-    const haruki_assetstudio_object_list_into_request_v3 *request,
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_into_v1(
+    const haruki_assetstudio_object_list_into_request_v1 *request,
     haruki_assetstudio_object_table *response);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_v1(
     const haruki_assetstudio_object_lookup_request *request,
     haruki_assetstudio_object_table *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_size_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_size_v1(
     const haruki_assetstudio_object_lookup_request *request,
     haruki_assetstudio_object_table *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_into_v2(
-    const haruki_assetstudio_object_lookup_into_request_v2 *request,
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_into_v1(
+    const haruki_assetstudio_object_lookup_into_request_v1 *request,
     haruki_assetstudio_object_table *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_close_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_close_v1(
     const haruki_assetstudio_context_close_request *request,
     haruki_assetstudio_context_close_response *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_object_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_object_v1(
     const haruki_assetstudio_object_read_request *request,
     haruki_assetstudio_object_read_response *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_v2(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_v1(
     const haruki_assetstudio_object_read_batch_request *request,
     haruki_assetstudio_object_read_batch_response *response);
 
 /*
- * Batch read v3 returns the same items/string/payload pointers as v2, but
+ * Batch read v1 returns the same items/string/payload pointers as v1, but
  * ownership is represented by response.result_handle. If result_handle != 0,
  * release all returned buffers with haruki_assetstudio_result_free(result_handle)
  * exactly once; do not pass items_buffer or payload to haruki_assetstudio_free_buffer.
  * Closing a context releases any still-owned result handles for that context.
  */
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_v3(
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_handle_v1(
     const haruki_assetstudio_object_read_batch_request *request,
-    haruki_assetstudio_object_read_batch_response_v3 *response);
+    haruki_assetstudio_object_read_batch_handle_response_v1 *response);
 
 /*
- * Batch read v4 is the preferred SDK path for caller-owned buffers.
+ * Batch read v1 is the preferred SDK path for caller-owned buffers.
  *
- * First call haruki_assetstudio_context_read_objects_size_v4 with struct_size
- * set to sizeof(haruki_assetstudio_object_read_batch_request_v4). Set reserved
+ * First call haruki_assetstudio_context_read_objects_size_v1 with struct_size
+ * set to sizeof(haruki_assetstudio_object_read_batch_request_v1). Set reserved
  * fields to 0. Allocate items_buffer using response.required_items_buffer_len
  * and payload using response.required_payload_len. Then call
- * haruki_assetstudio_context_read_objects_into_v4 with struct_size set to
- * sizeof(haruki_assetstudio_object_read_batch_into_request_v4).
+ * haruki_assetstudio_context_read_objects_into_v1 with struct_size set to
+ * sizeof(haruki_assetstudio_object_read_batch_into_request_v1).
  *
  * response.items points inside items_buffer. response.string_data also points
- * inside items_buffer. Each v4 item string field is an offset/length pair
+ * inside items_buffer. Each v1 item string field is an offset/length pair
  * relative to response.string_data, including error_message_offset/len for
  * failed items. response.payload points to the caller-provided payload buffer.
  * The caller owns both buffers and must not pass them to result_free.
- * If a provided buffer is too small, into_v4 returns
+ * If a provided buffer is too small, into_v1 returns
  * HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL/8 and fills the required_* lengths.
  */
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_size_v4(
-    const haruki_assetstudio_object_read_batch_request_v4 *request,
-    haruki_assetstudio_object_read_batch_size_response_v4 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_size_v1(
+    const haruki_assetstudio_object_read_batch_request_v1 *request,
+    haruki_assetstudio_object_read_batch_size_response_v1 *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_into_v4(
-    const haruki_assetstudio_object_read_batch_into_request_v4 *request,
-    haruki_assetstudio_object_read_batch_into_response_v4 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_into_v1(
+    const haruki_assetstudio_object_read_batch_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_into_response_v1 *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_size_v5(
-    const haruki_assetstudio_object_read_batch_by_index_request_v5 *request,
-    haruki_assetstudio_object_read_batch_size_response_v4 *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_into_v5(
-    const haruki_assetstudio_object_read_batch_by_index_into_request_v5 *request,
-    haruki_assetstudio_object_read_batch_into_response_v4 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_size_v1(
+    const haruki_assetstudio_object_read_batch_by_index_request_v1 *request,
+    haruki_assetstudio_object_read_batch_size_response_v1 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_into_v1(
+    const haruki_assetstudio_object_read_batch_by_index_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_into_response_v1 *response);
 
 /*
- * Direct read v6 is a one-call caller-owned-buffer path. It uses the same
- * request/response structs as v4/v5 into calls, but does not require a prior
+ * Direct read v1 is a one-call caller-owned-buffer path. It uses the same
+ * request/response structs as v1/v1 into calls, but does not require a prior
  * size call and does not use the per-context pending batch cache. If buffers
  * are too small, it returns HARUKI_ASSETSTUDIO_BUFFER_TOO_SMALL/8 and fills
  * required_* lengths so callers can resize and retry.
  */
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_direct_into_v6(
-    const haruki_assetstudio_object_read_batch_into_request_v4 *request,
-    haruki_assetstudio_object_read_batch_into_response_v4 *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_direct_into_v6(
-    const haruki_assetstudio_object_read_batch_by_index_into_request_v5 *request,
-    haruki_assetstudio_object_read_batch_into_response_v4 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_direct_into_v1(
+    const haruki_assetstudio_object_read_batch_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_into_response_v1 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_direct_into_v1(
+    const haruki_assetstudio_object_read_batch_by_index_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_into_response_v1 *response);
 
 /*
- * Direct retry v7 is a safe SDK helper over the v6 hot path. The caller may
- * pass reusable buffers just like v6. If they are large enough, response points
+ * Direct retry v1 is a safe SDK helper over the v1 hot path. The caller may
+ * pass reusable buffers just like v1. If they are large enough, response points
  * into those caller buffers and result_handle is 0. If either buffer is too
  * small or null, Native allocates exact-size replacement buffers, fills the
  * response, sets ownership_flags/result_handle, and returns the normal read
  * status instead of BUFFER_TOO_SMALL. Release result_handle once when non-zero.
  */
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_direct_retry_v7(
-    const haruki_assetstudio_object_read_batch_into_request_v4 *request,
-    haruki_assetstudio_object_read_batch_retry_response_v7 *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_direct_retry_v7(
-    const haruki_assetstudio_object_read_batch_by_index_into_request_v5 *request,
-    haruki_assetstudio_object_read_batch_retry_response_v7 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_direct_retry_v1(
+    const haruki_assetstudio_object_read_batch_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_retry_response_v1 *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_direct_retry_v1(
+    const haruki_assetstudio_object_read_batch_by_index_into_request_v1 *request,
+    haruki_assetstudio_object_read_batch_retry_response_v1 *response);
 
 HARUKI_ASSETSTUDIO_API void haruki_assetstudio_free_string(char *value);
 HARUKI_ASSETSTUDIO_API void haruki_assetstudio_free_buffer(uint8_t *value);

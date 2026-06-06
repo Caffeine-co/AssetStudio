@@ -215,10 +215,10 @@ internal sealed class NativeAssetStudio
     public NativeAssetStudio(string libraryPath)
     {
         var handle = NativeLibrary.Load(libraryPath);
-        contextOpen = Load<ContextOpenDelegate>(handle, "haruki_assetstudio_context_open_v2");
-        contextListObjects = Load<ContextListObjectsDelegate>(handle, "haruki_assetstudio_context_list_objects_v2");
-        contextClose = Load<ContextCloseDelegate>(handle, "haruki_assetstudio_context_close_v2");
-        contextReadObjectsDirectRetry = Load<ContextReadObjectsDirectRetryDelegate>(handle, "haruki_assetstudio_context_read_objects_direct_retry_v7");
+        contextOpen = Load<ContextOpenDelegate>(handle, "haruki_assetstudio_context_open_v1");
+        contextListObjects = Load<ContextListObjectsDelegate>(handle, "haruki_assetstudio_context_list_objects_v1");
+        contextClose = Load<ContextCloseDelegate>(handle, "haruki_assetstudio_context_close_v1");
+        contextReadObjectsDirectRetry = Load<ContextReadObjectsDirectRetryDelegate>(handle, "haruki_assetstudio_context_read_objects_direct_retry_v1");
         freeBuffer = Load<FreeDelegate>(handle, "haruki_assetstudio_free_buffer");
         resultFree = Load<ResultFreeDelegate>(handle, "haruki_assetstudio_result_free");
     }
@@ -250,13 +250,13 @@ internal sealed class NativeAssetStudio
             stopwatch.Stop();
             if (code != 0 || response.Status != 0)
             {
-                throw new InvalidOperationException($"context_open_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
+                throw new InvalidOperationException($"context_open_v1 returned rc={code} status={response.Status} error={response.ErrorCode}");
             }
             return new NativeOpenResult(
                 response.ContextId,
                 response.ExportableAssetCount,
                 response.ObjectIndexCount,
-                new Sample("context_open_v2", stopwatch.Elapsed.TotalMilliseconds));
+                new Sample("context_open_v1", stopwatch.Elapsed.TotalMilliseconds));
         }
         finally
         {
@@ -291,7 +291,7 @@ internal sealed class NativeAssetStudio
             stopwatch.Stop();
             if (code != 0 || response.Status != 0)
             {
-                throw new InvalidOperationException($"context_list_objects_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
+                throw new InvalidOperationException($"context_list_objects_v1 returned rc={code} status={response.Status} error={response.ErrorCode}");
             }
             var assets = new List<AssetRef>(Math.Max(0, response.ReturnedCount));
             for (var i = 0; i < response.ReturnedCount; i++)
@@ -299,7 +299,7 @@ internal sealed class NativeAssetStudio
                 var asset = Marshal.PtrToStructure<NativeAssetObject>(IntPtr.Add(response.Objects, i * Marshal.SizeOf<NativeAssetObject>()));
                 assets.Add(new AssetRef(asset.PathId));
             }
-            return new NativeListResult(assets, new Sample("context_list_objects_v2", stopwatch.Elapsed.TotalMilliseconds)
+            return new NativeListResult(assets, new Sample("context_list_objects_v1", stopwatch.Elapsed.TotalMilliseconds)
             {
                 AssetCount = response.TotalCount,
             });
@@ -320,7 +320,7 @@ internal sealed class NativeAssetStudio
         var imageFormatUtf8 = NativeUtf8.From(imageFormat);
         var itemSize = Marshal.SizeOf<NativeObjectReadItemRequest>();
         var itemsPtr = Marshal.AllocCoTaskMem(itemSize * pathIds.Count);
-        var response = new NativeObjectReadBatchRetryResponseV7();
+        var response = new NativeObjectReadBatchRetryResponseV1();
         var stopwatch = Stopwatch.StartNew();
         try
         {
@@ -337,9 +337,9 @@ internal sealed class NativeAssetStudio
                 Marshal.StructureToPtr(item, IntPtr.Add(itemsPtr, i * itemSize), false);
             }
 
-            var request = new NativeObjectReadBatchIntoRequestV4
+            var request = new NativeObjectReadBatchIntoRequestV1
             {
-                StructSize = Marshal.SizeOf<NativeObjectReadBatchIntoRequestV4>(),
+                StructSize = Marshal.SizeOf<NativeObjectReadBatchIntoRequestV1>(),
                 ContextId = contextId,
                 Items = itemsPtr,
                 Count = pathIds.Count,
@@ -348,9 +348,9 @@ internal sealed class NativeAssetStudio
             stopwatch.Stop();
             if (code != 0 || (response.Status != 0 && response.Status != 9))
             {
-                throw new InvalidOperationException($"context_read_objects_direct_retry_v7 returned rc={code} status={response.Status} error={response.ErrorCode}");
+                throw new InvalidOperationException($"context_read_objects_direct_retry_v1 returned rc={code} status={response.Status} error={response.ErrorCode}");
             }
-            return new Sample("context_read_objects_direct_retry_v7", stopwatch.Elapsed.TotalMilliseconds)
+            return new Sample("context_read_objects_direct_retry_v1", stopwatch.Elapsed.TotalMilliseconds)
             {
                 PayloadBytes = response.PayloadLen,
             };
@@ -380,9 +380,9 @@ internal sealed class NativeAssetStudio
         stopwatch.Stop();
         if (code != 0 || response.Status != 0)
         {
-            throw new InvalidOperationException($"context_close_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
+            throw new InvalidOperationException($"context_close_v1 returned rc={code} status={response.Status} error={response.ErrorCode}");
         }
-        return new NativeCloseResult(new Sample("context_close_v2", stopwatch.Elapsed.TotalMilliseconds));
+        return new NativeCloseResult(new Sample("context_close_v1", stopwatch.Elapsed.TotalMilliseconds));
     }
 
     private static T Load<T>(IntPtr handle, string name)
@@ -398,7 +398,7 @@ internal sealed class NativeAssetStudio
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int ContextCloseDelegate(ref NativeContextCloseRequest request, ref NativeContextCloseResponse response);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int ContextReadObjectsDirectRetryDelegate(ref NativeObjectReadBatchIntoRequestV4 request, ref NativeObjectReadBatchRetryResponseV7 response);
+    private delegate int ContextReadObjectsDirectRetryDelegate(ref NativeObjectReadBatchIntoRequestV1 request, ref NativeObjectReadBatchRetryResponseV1 response);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeDelegate(IntPtr value);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -594,7 +594,7 @@ internal struct NativeObjectReadItemRequest
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct NativeObjectReadBatchIntoRequestV4
+internal struct NativeObjectReadBatchIntoRequestV1
 {
     public int StructSize;
     public long ContextId;
@@ -609,7 +609,7 @@ internal struct NativeObjectReadBatchIntoRequestV4
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct NativeObjectReadBatchRetryResponseV7
+internal struct NativeObjectReadBatchRetryResponseV1
 {
     public int StructSize;
     public int AbiVersion;

@@ -32,7 +32,7 @@ def list_all_typed(native, context_id, page_size, asset_types_csv):
     checksum = 0
     native_ms = 0
     while True:
-        rc, table, assets = native.list_objects_v2(
+        rc, table, assets = native.list_objects_v1(
             context_id,
             offset=offset,
             limit=page_size,
@@ -70,7 +70,7 @@ def list_all_typed_raw(native, context_id, page_size, asset_types_csv):
             asset_types_csv_utf8_len=asset_type_len,
         )
         table = NativeObjectTable()
-        rc = native.lib.haruki_assetstudio_context_list_objects_v2(ctypes.byref(request), ctypes.byref(table))
+        rc = native.lib.haruki_assetstudio_context_list_objects_v1(ctypes.byref(request), ctypes.byref(table))
         try:
             if rc != 0 or table.status != 0:
                 raise RuntimeError(f"typed raw list failed rc={rc} status={table.status} error={table.error_code}")
@@ -102,9 +102,9 @@ def main():
     opened_context = None
 
     try:
-        rc, opened, _ = native.open_v2(args.input_path, args.unity_version)
+        rc, opened, _ = native.open_v1(args.input_path, args.unity_version)
         if rc != 0 or opened.status != 0:
-            raise RuntimeError(f"open_v2 failed rc={rc} status={opened.status} error={opened.error_code}")
+            raise RuntimeError(f"open_v1 failed rc={rc} status={opened.status} error={opened.error_code}")
         opened_context = opened.context_id
 
         typed_raw_samples = []
@@ -159,7 +159,7 @@ def main():
         print(json.dumps(result, separators=(",", ":")))
     finally:
         if opened_context:
-            native.close_v2(opened_context)
+            native.close_v1(opened_context)
 
 
 if __name__ == "__main__":

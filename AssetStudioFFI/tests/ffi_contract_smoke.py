@@ -20,7 +20,7 @@ class NativeObjectListRequest(ctypes.Structure):
     ]
 
 
-class NativeObjectListIntoRequestV3(ctypes.Structure):
+class NativeObjectListIntoRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
@@ -52,7 +52,7 @@ class NativeObjectLookupRequest(ctypes.Structure):
     ]
 
 
-class NativeObjectLookupIntoRequestV2(ctypes.Structure):
+class NativeObjectLookupIntoRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
@@ -215,13 +215,13 @@ class NativeAbiLayoutResponse(ctypes.Structure):
         ("limits_response", ctypes.c_int),
         ("capabilities_response", ctypes.c_int),
         ("object_list_request", ctypes.c_int),
-        ("object_list_into_request_v3", ctypes.c_int),
+        ("object_list_into_request_v1", ctypes.c_int),
         ("object_table", ctypes.c_int),
         ("asset_object", ctypes.c_int),
         ("object_read_item_request", ctypes.c_int),
-        ("object_read_batch_into_request_v4", ctypes.c_int),
-        ("object_read_item_response_v4", ctypes.c_int),
-        ("object_read_batch_retry_response_v7", ctypes.c_int),
+        ("object_read_batch_into_request_v1", ctypes.c_int),
+        ("object_read_item_response_v1", ctypes.c_int),
+        ("object_read_batch_retry_response_v1", ctypes.c_int),
         ("flags", ctypes.c_int),
         ("reserved", ctypes.c_int),
     ]
@@ -288,7 +288,7 @@ class NativeObjectReadItemRequest(ctypes.Structure):
     ]
 
 
-class NativeObjectReadItemByIndexRequestV5(ctypes.Structure):
+class NativeObjectReadItemByIndexRequestV1(ctypes.Structure):
     _fields_ = [
         ("object_index", ctypes.c_int),
         ("kind_utf8", ctypes.POINTER(ctypes.c_ubyte)),
@@ -307,7 +307,7 @@ class NativeObjectReadBatchRequest(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchRequestV4(ctypes.Structure):
+class NativeObjectReadBatchRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
@@ -318,7 +318,7 @@ class NativeObjectReadBatchRequestV4(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchIntoRequestV4(ctypes.Structure):
+class NativeObjectReadBatchIntoRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
@@ -333,22 +333,22 @@ class NativeObjectReadBatchIntoRequestV4(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchByIndexRequestV5(ctypes.Structure):
+class NativeObjectReadBatchByIndexRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
-        ("items", ctypes.POINTER(NativeObjectReadItemByIndexRequestV5)),
+        ("items", ctypes.POINTER(NativeObjectReadItemByIndexRequestV1)),
         ("count", ctypes.c_int),
         ("flags", ctypes.c_int),
         ("reserved", ctypes.c_int),
     ]
 
 
-class NativeObjectReadBatchByIndexIntoRequestV5(ctypes.Structure):
+class NativeObjectReadBatchByIndexIntoRequestV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("context_id", ctypes.c_longlong),
-        ("items", ctypes.POINTER(NativeObjectReadItemByIndexRequestV5)),
+        ("items", ctypes.POINTER(NativeObjectReadItemByIndexRequestV1)),
         ("count", ctypes.c_int),
         ("flags", ctypes.c_int),
         ("reserved", ctypes.c_int),
@@ -398,7 +398,7 @@ class NativeObjectReadBatchResponse(ctypes.Structure):
     ]
 
 
-class NativeObjectReadItemResponseV4(ctypes.Structure):
+class NativeObjectReadItemResponseV1(ctypes.Structure):
     _fields_ = [
         ("index", ctypes.c_int),
         ("status", ctypes.c_int),
@@ -417,7 +417,7 @@ class NativeObjectReadItemResponseV4(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchResponseV3(ctypes.Structure):
+class NativeObjectReadBatchResponseV1(ctypes.Structure):
     _fields_ = [
         ("abi_version", ctypes.c_int),
         ("schema_version", ctypes.c_int),
@@ -441,7 +441,7 @@ class NativeObjectReadBatchResponseV3(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchSizeResponseV4(ctypes.Structure):
+class NativeObjectReadBatchSizeResponseV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("abi_version", ctypes.c_int),
@@ -466,7 +466,7 @@ class NativeObjectReadBatchSizeResponseV4(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchIntoResponseV4(ctypes.Structure):
+class NativeObjectReadBatchIntoResponseV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("abi_version", ctypes.c_int),
@@ -479,7 +479,7 @@ class NativeObjectReadBatchIntoResponseV4(ctypes.Structure):
         ("requested_count", ctypes.c_int),
         ("returned_count", ctypes.c_int),
         ("failed_count", ctypes.c_int),
-        ("items", ctypes.POINTER(NativeObjectReadItemResponseV4)),
+        ("items", ctypes.POINTER(NativeObjectReadItemResponseV1)),
         ("string_data", ctypes.POINTER(ctypes.c_ubyte)),
         ("string_data_len", ctypes.c_int),
         ("items_buffer", ctypes.c_void_p),
@@ -495,7 +495,7 @@ class NativeObjectReadBatchIntoResponseV4(ctypes.Structure):
     ]
 
 
-class NativeObjectReadBatchRetryResponseV7(ctypes.Structure):
+class NativeObjectReadBatchRetryResponseV1(ctypes.Structure):
     _fields_ = [
         ("struct_size", ctypes.c_int),
         ("abi_version", ctypes.c_int),
@@ -509,7 +509,7 @@ class NativeObjectReadBatchRetryResponseV7(ctypes.Structure):
         ("requested_count", ctypes.c_int),
         ("returned_count", ctypes.c_int),
         ("failed_count", ctypes.c_int),
-        ("items", ctypes.POINTER(NativeObjectReadItemResponseV4)),
+        ("items", ctypes.POINTER(NativeObjectReadItemResponseV1)),
         ("string_data", ctypes.POINTER(ctypes.c_ubyte)),
         ("string_data_len", ctypes.c_int),
         ("items_buffer", ctypes.c_void_p),
@@ -530,104 +530,104 @@ class NativeObjectReadBatchRetryResponseV7(ctypes.Structure):
 class HarukiAssetStudioNative:
     def __init__(self, library_path):
         self.lib = ctypes.CDLL(library_path)
-        self.lib.haruki_assetstudio_capabilities_v2.argtypes = [ctypes.POINTER(NativeCapabilitiesResponse)]
-        self.lib.haruki_assetstudio_capabilities_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_abi_layout_v2.argtypes = [ctypes.POINTER(NativeAbiLayoutResponse)]
-        self.lib.haruki_assetstudio_abi_layout_v2.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_capabilities_v1.argtypes = [ctypes.POINTER(NativeCapabilitiesResponse)]
+        self.lib.haruki_assetstudio_capabilities_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_abi_layout_v1.argtypes = [ctypes.POINTER(NativeAbiLayoutResponse)]
+        self.lib.haruki_assetstudio_abi_layout_v1.restype = ctypes.c_int
         self.lib.haruki_assetstudio_limits_v1.argtypes = [ctypes.POINTER(NativeLimitsResponse)]
         self.lib.haruki_assetstudio_limits_v1.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_open_v2.argtypes = [
+        self.lib.haruki_assetstudio_context_open_v1.argtypes = [
             ctypes.POINTER(NativeContextOpenRequest),
             ctypes.POINTER(NativeContextOpenResponse),
         ]
-        self.lib.haruki_assetstudio_context_open_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_list_objects_v2.argtypes = [
+        self.lib.haruki_assetstudio_context_open_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_list_objects_v1.argtypes = [
             ctypes.POINTER(NativeObjectListRequest),
             ctypes.POINTER(NativeObjectTable),
         ]
-        self.lib.haruki_assetstudio_context_list_objects_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_list_objects_size_v3.argtypes = [
+        self.lib.haruki_assetstudio_context_list_objects_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_list_objects_size_v1.argtypes = [
             ctypes.POINTER(NativeObjectListRequest),
             ctypes.POINTER(NativeObjectTable),
         ]
-        self.lib.haruki_assetstudio_context_list_objects_size_v3.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_list_objects_into_v3.argtypes = [
-            ctypes.POINTER(NativeObjectListIntoRequestV3),
+        self.lib.haruki_assetstudio_context_list_objects_size_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_list_objects_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectListIntoRequestV1),
             ctypes.POINTER(NativeObjectTable),
         ]
-        self.lib.haruki_assetstudio_context_list_objects_into_v3.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_list_objects_into_v1.restype = ctypes.c_int
         self.lib.haruki_assetstudio_context_lookup_objects_v1.argtypes = [
             ctypes.POINTER(NativeObjectLookupRequest),
             ctypes.POINTER(NativeObjectTable),
         ]
         self.lib.haruki_assetstudio_context_lookup_objects_v1.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_lookup_objects_size_v2.argtypes = [
+        self.lib.haruki_assetstudio_context_lookup_objects_size_v1.argtypes = [
             ctypes.POINTER(NativeObjectLookupRequest),
             ctypes.POINTER(NativeObjectTable),
         ]
-        self.lib.haruki_assetstudio_context_lookup_objects_size_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_lookup_objects_into_v2.argtypes = [
-            ctypes.POINTER(NativeObjectLookupIntoRequestV2),
+        self.lib.haruki_assetstudio_context_lookup_objects_size_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_lookup_objects_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectLookupIntoRequestV1),
             ctypes.POINTER(NativeObjectTable),
         ]
-        self.lib.haruki_assetstudio_context_lookup_objects_into_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_v2.argtypes = [
+        self.lib.haruki_assetstudio_context_lookup_objects_into_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_v1.argtypes = [
             ctypes.POINTER(NativeObjectReadBatchRequest),
             ctypes.POINTER(NativeObjectReadBatchResponse),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_v3.argtypes = [
+        self.lib.haruki_assetstudio_context_read_objects_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_handle_v1.argtypes = [
             ctypes.POINTER(NativeObjectReadBatchRequest),
-            ctypes.POINTER(NativeObjectReadBatchResponseV3),
+            ctypes.POINTER(NativeObjectReadBatchResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_v3.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_size_v4.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchRequestV4),
-            ctypes.POINTER(NativeObjectReadBatchSizeResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_handle_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_size_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchSizeResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_size_v4.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_into_v4.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchIntoRequestV4),
-            ctypes.POINTER(NativeObjectReadBatchIntoResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_size_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchIntoResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_into_v4.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_by_index_size_v5.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchByIndexRequestV5),
-            ctypes.POINTER(NativeObjectReadBatchSizeResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_into_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_by_index_size_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchByIndexRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchSizeResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_by_index_size_v5.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_by_index_into_v5.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV5),
-            ctypes.POINTER(NativeObjectReadBatchIntoResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_by_index_size_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_by_index_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchIntoResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_by_index_into_v5.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_direct_into_v6.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchIntoRequestV4),
-            ctypes.POINTER(NativeObjectReadBatchIntoResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_by_index_into_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_direct_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchIntoResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_direct_into_v6.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v6.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV5),
-            ctypes.POINTER(NativeObjectReadBatchIntoResponseV4),
+        self.lib.haruki_assetstudio_context_read_objects_direct_into_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchIntoResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v6.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_direct_retry_v7.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchIntoRequestV4),
-            ctypes.POINTER(NativeObjectReadBatchRetryResponseV7),
+        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_direct_retry_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchRetryResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_direct_retry_v7.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v7.argtypes = [
-            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV5),
-            ctypes.POINTER(NativeObjectReadBatchRetryResponseV7),
+        self.lib.haruki_assetstudio_context_read_objects_direct_retry_v1.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v1.argtypes = [
+            ctypes.POINTER(NativeObjectReadBatchByIndexIntoRequestV1),
+            ctypes.POINTER(NativeObjectReadBatchRetryResponseV1),
         ]
-        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v7.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v1.restype = ctypes.c_int
         self.lib.haruki_assetstudio_result_free.argtypes = [ctypes.c_longlong]
         self.lib.haruki_assetstudio_result_free.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_close_v2.argtypes = [
+        self.lib.haruki_assetstudio_context_close_v1.argtypes = [
             ctypes.POINTER(NativeContextCloseRequest),
             ctypes.POINTER(NativeContextCloseResponse),
         ]
-        self.lib.haruki_assetstudio_context_close_v2.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_context_close_v1.restype = ctypes.c_int
         self.lib.haruki_assetstudio_free_string.argtypes = [ctypes.c_void_p]
         self.lib.haruki_assetstudio_free_string.restype = None
         self.lib.haruki_assetstudio_free_buffer.argtypes = [ctypes.c_void_p]
@@ -645,7 +645,7 @@ class HarukiAssetStudioNative:
         rc = function(ctypes.byref(response))
         return rc, self._take_json(response.value)
 
-    def open_v2(self, input_path, unity_version):
+    def open_v1(self, input_path, unity_version):
         buffers = []
 
         def native_bytes(value):
@@ -671,7 +671,7 @@ class HarukiAssetStudioNative:
             reserved=0,
         )
         response = NativeContextOpenResponse()
-        rc = self.lib.haruki_assetstudio_context_open_v2(ctypes.byref(request), ctypes.byref(response))
+        rc = self.lib.haruki_assetstudio_context_open_v1(ctypes.byref(request), ctypes.byref(response))
         unity_version_text = ""
         if response.unity_version_utf8 and response.unity_version_utf8_len > 0:
             unity_version_text = ctypes.string_at(response.unity_version_utf8, response.unity_version_utf8_len).decode("utf-8")
@@ -679,7 +679,7 @@ class HarukiAssetStudioNative:
             self.lib.haruki_assetstudio_free_buffer(response.buffer)
         return rc, response, unity_version_text
 
-    def close_v2(self, context_id):
+    def close_v1(self, context_id):
         request = NativeContextCloseRequest(
             struct_size=ctypes.sizeof(NativeContextCloseRequest),
             context_id=context_id,
@@ -687,10 +687,10 @@ class HarukiAssetStudioNative:
             reserved=0,
         )
         response = NativeContextCloseResponse()
-        rc = self.lib.haruki_assetstudio_context_close_v2(ctypes.byref(request), ctypes.byref(response))
+        rc = self.lib.haruki_assetstudio_context_close_v1(ctypes.byref(request), ctypes.byref(response))
         return rc, response
 
-    def list_objects_v2(self, context_id, offset=0, limit=8, asset_types_csv=None):
+    def list_objects_v1(self, context_id, offset=0, limit=8, asset_types_csv=None):
         asset_type_bytes = None
         asset_type_ptr = None
         asset_type_len = 0
@@ -709,11 +709,11 @@ class HarukiAssetStudioNative:
             reserved=0,
         )
         response = NativeObjectTable()
-        rc = self.lib.haruki_assetstudio_context_list_objects_v2(ctypes.byref(request), ctypes.byref(response))
+        rc = self.lib.haruki_assetstudio_context_list_objects_v1(ctypes.byref(request), ctypes.byref(response))
         objects = self._take_object_table_objects(response)
         return rc, response, objects
 
-    def list_objects_v3(self, context_id, offset=0, limit=8, asset_types_csv=None, shrink_buffer_by=0):
+    def list_objects_v1(self, context_id, offset=0, limit=8, asset_types_csv=None, shrink_buffer_by=0):
         asset_type_bytes = None
         asset_type_ptr = None
         asset_type_len = 0
@@ -732,14 +732,14 @@ class HarukiAssetStudioNative:
             reserved=0,
         )
         size_response = NativeObjectTable()
-        size_rc = self.lib.haruki_assetstudio_context_list_objects_size_v3(
+        size_rc = self.lib.haruki_assetstudio_context_list_objects_size_v1(
             ctypes.byref(size_request),
             ctypes.byref(size_response),
         )
         buffer_len = max(0, size_response.buffer_len - shrink_buffer_by)
         buffer = (ctypes.c_ubyte * buffer_len)() if buffer_len > 0 else None
-        into_request = NativeObjectListIntoRequestV3(
-            struct_size=ctypes.sizeof(NativeObjectListIntoRequestV3),
+        into_request = NativeObjectListIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectListIntoRequestV1),
             context_id=context_id,
             offset=offset,
             limit=limit,
@@ -751,7 +751,7 @@ class HarukiAssetStudioNative:
             buffer_len=buffer_len,
         )
         into_response = NativeObjectTable()
-        into_rc = self.lib.haruki_assetstudio_context_list_objects_into_v3(
+        into_rc = self.lib.haruki_assetstudio_context_list_objects_into_v1(
             ctypes.byref(into_request),
             ctypes.byref(into_response),
         )
@@ -792,7 +792,7 @@ class HarukiAssetStudioNative:
         objects = self._take_object_table_objects(response)
         return rc, response, objects
 
-    def lookup_objects_v2(self, context_id, lookup_kind, path_id=0, query=None, offset=0, limit=8, asset_types_csv=None, flags=0, shrink_buffer_by=0):
+    def lookup_objects_v1(self, context_id, lookup_kind, path_id=0, query=None, offset=0, limit=8, asset_types_csv=None, flags=0, shrink_buffer_by=0):
         query_bytes = None
         query_ptr = None
         query_len = 0
@@ -822,14 +822,14 @@ class HarukiAssetStudioNative:
             reserved=0,
         )
         size_response = NativeObjectTable()
-        size_rc = self.lib.haruki_assetstudio_context_lookup_objects_size_v2(
+        size_rc = self.lib.haruki_assetstudio_context_lookup_objects_size_v1(
             ctypes.byref(size_request),
             ctypes.byref(size_response),
         )
         buffer_len = max(0, size_response.buffer_len - shrink_buffer_by)
         buffer = (ctypes.c_ubyte * buffer_len)() if buffer_len > 0 else None
-        into_request = NativeObjectLookupIntoRequestV2(
-            struct_size=ctypes.sizeof(NativeObjectLookupIntoRequestV2),
+        into_request = NativeObjectLookupIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectLookupIntoRequestV1),
             context_id=context_id,
             lookup_kind=lookup_kind,
             path_id=path_id,
@@ -845,7 +845,7 @@ class HarukiAssetStudioNative:
             buffer_len=buffer_len,
         )
         into_response = NativeObjectTable()
-        into_rc = self.lib.haruki_assetstudio_context_lookup_objects_into_v2(
+        into_rc = self.lib.haruki_assetstudio_context_lookup_objects_into_v1(
             ctypes.byref(into_request),
             ctypes.byref(into_response),
         )
@@ -881,12 +881,12 @@ class HarukiAssetStudioNative:
             if free_buffer and response.buffer:
                 self.lib.haruki_assetstudio_free_buffer(response.buffer)
 
-    def list_objects_v2_null_request(self):
+    def list_objects_v1_null_request(self):
         response = NativeObjectTable()
-        rc = self.lib.haruki_assetstudio_context_list_objects_v2(None, ctypes.byref(response))
+        rc = self.lib.haruki_assetstudio_context_list_objects_v1(None, ctypes.byref(response))
         return rc, response
 
-    def read_objects_v3(self, context_id, objects):
+    def read_objects_handle_v1(self, context_id, objects):
         requests, buffers = self._build_read_requests(objects)
         request = NativeObjectReadBatchRequest(
             context_id=context_id,
@@ -894,11 +894,11 @@ class HarukiAssetStudioNative:
             count=len(objects),
             flags=0,
         )
-        response = NativeObjectReadBatchResponseV3()
-        rc = self.lib.haruki_assetstudio_context_read_objects_v3(ctypes.byref(request), ctypes.byref(response))
+        response = NativeObjectReadBatchResponseV1()
+        rc = self.lib.haruki_assetstudio_context_read_objects_handle_v1(ctypes.byref(request), ctypes.byref(response))
         return rc, response
 
-    def read_objects_v2(self, context_id, objects):
+    def read_objects_v1(self, context_id, objects):
         requests, buffers = self._build_read_requests(objects)
         request = NativeObjectReadBatchRequest(
             context_id=context_id,
@@ -907,20 +907,20 @@ class HarukiAssetStudioNative:
             flags=0,
         )
         response = NativeObjectReadBatchResponse()
-        rc = self.lib.haruki_assetstudio_context_read_objects_v2(ctypes.byref(request), ctypes.byref(response))
+        rc = self.lib.haruki_assetstudio_context_read_objects_v1(ctypes.byref(request), ctypes.byref(response))
         return rc, response
 
-    def read_objects_v4(self, context_id, objects, shrink_items_by=0, shrink_payload_by=0):
+    def read_objects_v1(self, context_id, objects, shrink_items_by=0, shrink_payload_by=0):
         requests, buffers = self._build_read_requests(objects)
-        size_request = NativeObjectReadBatchRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV4),
+        size_request = NativeObjectReadBatchRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
             flags=0,
         )
-        size_response = NativeObjectReadBatchSizeResponseV4()
-        size_rc = self.lib.haruki_assetstudio_context_read_objects_size_v4(
+        size_response = NativeObjectReadBatchSizeResponseV1()
+        size_rc = self.lib.haruki_assetstudio_context_read_objects_size_v1(
             ctypes.byref(size_request),
             ctypes.byref(size_response),
         )
@@ -929,8 +929,8 @@ class HarukiAssetStudioNative:
         payload_len = max(0, size_response.required_payload_len - shrink_payload_by)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        into_request = NativeObjectReadBatchIntoRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        into_request = NativeObjectReadBatchIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -940,25 +940,25 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        into_response = NativeObjectReadBatchIntoResponseV4()
-        into_rc = self.lib.haruki_assetstudio_context_read_objects_into_v4(
+        into_response = NativeObjectReadBatchIntoResponseV1()
+        into_rc = self.lib.haruki_assetstudio_context_read_objects_into_v1(
             ctypes.byref(into_request),
             ctypes.byref(into_response),
         )
         return size_rc, size_response, into_rc, into_response, items_buffer, payload_buffer
 
-    def read_objects_by_index_v5(self, context_id, objects):
+    def read_objects_by_index_v1(self, context_id, objects):
         requests, buffers = self._build_read_by_index_requests(objects)
-        size_request = NativeObjectReadBatchByIndexRequestV5(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexRequestV5),
+        size_request = NativeObjectReadBatchByIndexRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
             flags=0,
             reserved=0,
         )
-        size_response = NativeObjectReadBatchSizeResponseV4()
-        size_rc = self.lib.haruki_assetstudio_context_read_objects_by_index_size_v5(
+        size_response = NativeObjectReadBatchSizeResponseV1()
+        size_rc = self.lib.haruki_assetstudio_context_read_objects_by_index_size_v1(
             ctypes.byref(size_request),
             ctypes.byref(size_response),
         )
@@ -966,8 +966,8 @@ class HarukiAssetStudioNative:
         payload_len = max(0, size_response.required_payload_len)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        into_request = NativeObjectReadBatchByIndexIntoRequestV5(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV5),
+        into_request = NativeObjectReadBatchByIndexIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -978,19 +978,19 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        into_response = NativeObjectReadBatchIntoResponseV4()
-        into_rc = self.lib.haruki_assetstudio_context_read_objects_by_index_into_v5(
+        into_response = NativeObjectReadBatchIntoResponseV1()
+        into_rc = self.lib.haruki_assetstudio_context_read_objects_by_index_into_v1(
             ctypes.byref(into_request),
             ctypes.byref(into_response),
         )
         return size_rc, size_response, into_rc, into_response, items_buffer, payload_buffer
 
-    def read_objects_direct_v6(self, context_id, objects, items_len, payload_len):
+    def read_objects_direct_v1(self, context_id, objects, items_len, payload_len):
         requests, buffers = self._build_read_requests(objects)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        request = NativeObjectReadBatchIntoRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        request = NativeObjectReadBatchIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1000,19 +1000,19 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        response = NativeObjectReadBatchIntoResponseV4()
-        rc = self.lib.haruki_assetstudio_context_read_objects_direct_into_v6(
+        response = NativeObjectReadBatchIntoResponseV1()
+        rc = self.lib.haruki_assetstudio_context_read_objects_direct_into_v1(
             ctypes.byref(request),
             ctypes.byref(response),
         )
         return rc, response, items_buffer, payload_buffer
 
-    def read_objects_by_index_direct_v6(self, context_id, objects, items_len, payload_len):
+    def read_objects_by_index_direct_v1(self, context_id, objects, items_len, payload_len):
         requests, buffers = self._build_read_by_index_requests(objects)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        request = NativeObjectReadBatchByIndexIntoRequestV5(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV5),
+        request = NativeObjectReadBatchByIndexIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1023,19 +1023,19 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        response = NativeObjectReadBatchIntoResponseV4()
-        rc = self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v6(
+        response = NativeObjectReadBatchIntoResponseV1()
+        rc = self.lib.haruki_assetstudio_context_read_objects_by_index_direct_into_v1(
             ctypes.byref(request),
             ctypes.byref(response),
         )
         return rc, response, items_buffer, payload_buffer
 
-    def read_objects_direct_retry_v7(self, context_id, objects, items_len, payload_len):
+    def read_objects_direct_retry_v1(self, context_id, objects, items_len, payload_len):
         requests, buffers = self._build_read_requests(objects)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        request = NativeObjectReadBatchIntoRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        request = NativeObjectReadBatchIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1045,19 +1045,19 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        response = NativeObjectReadBatchRetryResponseV7()
-        rc = self.lib.haruki_assetstudio_context_read_objects_direct_retry_v7(
+        response = NativeObjectReadBatchRetryResponseV1()
+        rc = self.lib.haruki_assetstudio_context_read_objects_direct_retry_v1(
             ctypes.byref(request),
             ctypes.byref(response),
         )
         return rc, response, items_buffer, payload_buffer
 
-    def read_objects_by_index_direct_retry_v7(self, context_id, objects, items_len, payload_len):
+    def read_objects_by_index_direct_retry_v1(self, context_id, objects, items_len, payload_len):
         requests, buffers = self._build_read_by_index_requests(objects)
         items_buffer = (ctypes.c_ubyte * items_len)() if items_len > 0 else None
         payload_buffer = (ctypes.c_ubyte * payload_len)() if payload_len > 0 else None
-        request = NativeObjectReadBatchByIndexIntoRequestV5(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV5),
+        request = NativeObjectReadBatchByIndexIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1068,24 +1068,24 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(payload_buffer, ctypes.c_void_p) if payload_buffer is not None else None,
             payload_len=payload_len,
         )
-        response = NativeObjectReadBatchRetryResponseV7()
-        rc = self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v7(
+        response = NativeObjectReadBatchRetryResponseV1()
+        rc = self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v1(
             ctypes.byref(request),
             ctypes.byref(response),
         )
         return rc, response, items_buffer, payload_buffer
 
-    def read_objects_v4_too_small_then_retry(self, context_id, objects):
+    def read_objects_v1_too_small_then_retry(self, context_id, objects):
         requests, buffers = self._build_read_requests(objects)
-        size_request = NativeObjectReadBatchRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV4),
+        size_request = NativeObjectReadBatchRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
             flags=0,
         )
-        size_response = NativeObjectReadBatchSizeResponseV4()
-        size_rc = self.lib.haruki_assetstudio_context_read_objects_size_v4(
+        size_response = NativeObjectReadBatchSizeResponseV1()
+        size_rc = self.lib.haruki_assetstudio_context_read_objects_size_v1(
             ctypes.byref(size_request),
             ctypes.byref(size_response),
         )
@@ -1094,8 +1094,8 @@ class HarukiAssetStudioNative:
         small_payload_len = max(0, size_response.required_payload_len - 1)
         small_items_buffer = (ctypes.c_ubyte * small_items_len)() if small_items_len > 0 else None
         small_payload_buffer = (ctypes.c_ubyte * small_payload_len)() if small_payload_len > 0 else None
-        small_request = NativeObjectReadBatchIntoRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        small_request = NativeObjectReadBatchIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1105,8 +1105,8 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(small_payload_buffer, ctypes.c_void_p) if small_payload_buffer is not None else None,
             payload_len=small_payload_len,
         )
-        small_response = NativeObjectReadBatchIntoResponseV4()
-        small_rc = self.lib.haruki_assetstudio_context_read_objects_into_v4(
+        small_response = NativeObjectReadBatchIntoResponseV1()
+        small_rc = self.lib.haruki_assetstudio_context_read_objects_into_v1(
             ctypes.byref(small_request),
             ctypes.byref(small_response),
         )
@@ -1115,8 +1115,8 @@ class HarukiAssetStudioNative:
         retry_payload_len = size_response.required_payload_len
         retry_items_buffer = (ctypes.c_ubyte * retry_items_len)() if retry_items_len > 0 else None
         retry_payload_buffer = (ctypes.c_ubyte * retry_payload_len)() if retry_payload_len > 0 else None
-        retry_request = NativeObjectReadBatchIntoRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        retry_request = NativeObjectReadBatchIntoRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
             context_id=context_id,
             items=requests,
             count=len(objects),
@@ -1126,8 +1126,8 @@ class HarukiAssetStudioNative:
             payload=ctypes.cast(retry_payload_buffer, ctypes.c_void_p) if retry_payload_buffer is not None else None,
             payload_len=retry_payload_len,
         )
-        retry_response = NativeObjectReadBatchIntoResponseV4()
-        retry_rc = self.lib.haruki_assetstudio_context_read_objects_into_v4(
+        retry_response = NativeObjectReadBatchIntoResponseV1()
+        retry_rc = self.lib.haruki_assetstudio_context_read_objects_into_v1(
             ctypes.byref(retry_request),
             ctypes.byref(retry_response),
         )
@@ -1173,11 +1173,11 @@ class HarukiAssetStudioNative:
             buffers.append(buffer)
             return buffer, len(raw)
 
-        requests = (NativeObjectReadItemByIndexRequestV5 * len(objects))()
+        requests = (NativeObjectReadItemByIndexRequestV1 * len(objects))()
         for index, item in enumerate(objects):
             kind, kind_len = native_bytes(item.get("kind", "auto"))
             image_format, image_format_len = native_bytes(item.get("image_format", "raw_rgba"))
-            requests[index] = NativeObjectReadItemByIndexRequestV5(
+            requests[index] = NativeObjectReadItemByIndexRequestV1(
                 object_index=item["object_index"],
                 kind_utf8=kind,
                 kind_utf8_len=kind_len,
@@ -1207,7 +1207,7 @@ def assert_error(response, error_code, label):
     assert_eq(response.get("success"), False, f"{label}.success")
     assert_eq(response.get("error_code"), error_code, f"{label}.error_code")
     assert_eq(response.get("abi_version"), 1, f"{label}.abi_version")
-    assert_true(response.get("schema_version", 0) >= 2, f"{label}.schema_version")
+    assert_true(response.get("schema_version", 0) == 1, f"{label}.schema_version")
 
 
 def assert_abi_layout(layout):
@@ -1219,19 +1219,19 @@ def assert_abi_layout(layout):
         "limits_response": ctypes.sizeof(NativeLimitsResponse),
         "capabilities_response": ctypes.sizeof(NativeCapabilitiesResponse),
         "object_list_request": ctypes.sizeof(NativeObjectListRequest),
-        "object_list_into_request_v3": ctypes.sizeof(NativeObjectListIntoRequestV3),
+        "object_list_into_request_v1": ctypes.sizeof(NativeObjectListIntoRequestV1),
         "object_table": ctypes.sizeof(NativeObjectTable),
         "asset_object": ctypes.sizeof(NativeAssetObject),
         "object_read_item_request": ctypes.sizeof(NativeObjectReadItemRequest),
-        "object_read_batch_into_request_v4": ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
-        "object_read_item_response_v4": ctypes.sizeof(NativeObjectReadItemResponseV4),
-        "object_read_batch_retry_response_v7": ctypes.sizeof(NativeObjectReadBatchRetryResponseV7),
+        "object_read_batch_into_request_v1": ctypes.sizeof(NativeObjectReadBatchIntoRequestV1),
+        "object_read_item_response_v1": ctypes.sizeof(NativeObjectReadItemResponseV1),
+        "object_read_batch_retry_response_v1": ctypes.sizeof(NativeObjectReadBatchRetryResponseV1),
     }
     for name, size in expected.items():
         assert_eq(getattr(layout, name), size, f"abi_layout.struct_size.{name}")
 
 
-def parse_hapb_v2(payload):
+def parse_hapb_v1(payload):
     if len(payload) < 20:
         raise AssertionError(f"payload bundle too short: {len(payload)}")
     magic, version, header_len, entry_count, payload_data_bytes = struct.unpack_from("<IHHiq", payload, 0)
@@ -1269,23 +1269,23 @@ def main():
 
     try:
         caps = NativeCapabilitiesResponse()
-        rc = native.lib.haruki_assetstudio_capabilities_v2(ctypes.byref(caps))
+        rc = native.lib.haruki_assetstudio_capabilities_v1(ctypes.byref(caps))
         assert_eq(rc, 0, "capabilities.rc")
         assert_eq(caps.struct_size, ctypes.sizeof(NativeCapabilitiesResponse), "capabilities.struct_size")
         assert_eq(caps.abi_version, 1, "capabilities.abi_version")
-        assert_true(caps.schema_version >= 2, "capabilities.schema_version")
+        assert_true(caps.schema_version == 1, "capabilities.schema_version")
         assert_eq(caps.status, 0, "capabilities.status")
         assert_eq(caps.error_code, 0, "capabilities.error_code")
         assert_eq(caps.core_api_version_major, 1, "capabilities.core_api_version_major")
         assert_eq(caps.core_api_version_minor, 0, "capabilities.core_api_version_minor")
         assert_eq(caps.context_abi_version, 1, "capabilities.context_abi_version")
-        assert_eq(caps.object_table_abi_version, 3, "capabilities.object_table_abi_version")
-        assert_eq(caps.object_table_into_abi_version, 3, "capabilities.object_table_into_abi_version")
+        assert_eq(caps.object_table_abi_version, 1, "capabilities.object_table_abi_version")
+        assert_eq(caps.object_table_into_abi_version, 1, "capabilities.object_table_into_abi_version")
         assert_eq(caps.object_lookup_abi_version, 1, "capabilities.object_lookup_abi_version")
         assert_eq(caps.object_lookup_into_abi_version, 1, "capabilities.object_lookup_into_abi_version")
         assert_eq(caps.object_read_batch_into_abi_version, 1, "capabilities.object_read_batch_into_abi_version")
         assert_eq(caps.object_read_batch_by_index_abi_version, 1, "capabilities.object_read_batch_by_index_abi_version")
-        assert_eq(caps.object_read_batch_direct_into_abi_version, 2, "capabilities.object_read_batch_direct_into_abi_version")
+        assert_eq(caps.object_read_batch_direct_into_abi_version, 1, "capabilities.object_read_batch_direct_into_abi_version")
         assert_eq(caps.object_read_batch_direct_retry_abi_version, 1, "capabilities.object_read_batch_direct_retry_abi_version")
         assert_eq(caps.supports_typed_object_table, 1, "capabilities.supports_typed_object_table")
         assert_eq(caps.supports_caller_provided_object_table_buffers, 1, "capabilities.supports_caller_provided_object_table_buffers")
@@ -1306,7 +1306,7 @@ def main():
         assert_eq(rc, 0, "limits_v1.rc")
         assert_eq(limits.struct_size, ctypes.sizeof(NativeLimitsResponse), "limits_v1.struct_size")
         assert_eq(limits.abi_version, 1, "limits_v1.abi_version")
-        assert_true(limits.schema_version >= 2, "limits_v1.schema_version")
+        assert_true(limits.schema_version == 1, "limits_v1.schema_version")
         assert_eq(limits.limits_abi_version, 1, "limits_v1.limits_abi_version")
         assert_eq(limits.status, 0, "limits_v1.status")
         assert_eq(limits.error_code, 0, "limits_v1.error_code")
@@ -1323,132 +1323,132 @@ def main():
         assert_eq(limits.native_console_capture, 0, "limits_v1.native_console_capture")
 
         abi_layout = NativeAbiLayoutResponse()
-        rc = native.lib.haruki_assetstudio_abi_layout_v2(ctypes.byref(abi_layout))
+        rc = native.lib.haruki_assetstudio_abi_layout_v1(ctypes.byref(abi_layout))
         assert_eq(rc, 0, "abi_layout.rc")
         assert_eq(abi_layout.struct_size, ctypes.sizeof(NativeAbiLayoutResponse), "abi_layout.struct_size")
         assert_eq(abi_layout.abi_version, 1, "abi_layout.abi_version")
-        assert_true(abi_layout.schema_version >= 2, "abi_layout.schema_version")
+        assert_true(abi_layout.schema_version == 1, "abi_layout.schema_version")
         assert_eq(abi_layout.status, 0, "abi_layout.status")
         assert_eq(abi_layout.error_code, 0, "abi_layout.error_code")
-        assert_eq(abi_layout.layout_version, 2, "abi_layout.version")
+        assert_eq(abi_layout.layout_version, 1, "abi_layout.version")
         assert_abi_layout(abi_layout)
 
-        rc, missing_close = native.close_v2(987654321)
+        rc, missing_close = native.close_v1(987654321)
         assert_eq(rc, 4, "close_missing.rc")
         assert_eq(missing_close.status, 4, "close_missing.status")
         assert_eq(missing_close.error_code, 4, "close_missing.error_code")
 
-        rc, null_typed_table = native.list_objects_v2_null_request()
-        assert_eq(rc, 1, "list_v2_null_request.rc")
-        assert_eq(null_typed_table.status, 1, "list_v2_null_request.status")
-        assert_eq(null_typed_table.error_code, 1, "list_v2_null_request.error_code")
-        assert_eq(null_typed_table.abi_version, 1, "list_v2_null_request.abi_version")
-        assert_true(null_typed_table.schema_version >= 2, "list_v2_null_request.schema_version")
-        assert_eq(null_typed_table.object_table_abi_version, 3, "list_v2_null_request.object_table_abi_version")
+        rc, null_typed_table = native.list_objects_v1_null_request()
+        assert_eq(rc, 1, "list_v1_null_request.rc")
+        assert_eq(null_typed_table.status, 1, "list_v1_null_request.status")
+        assert_eq(null_typed_table.error_code, 1, "list_v1_null_request.error_code")
+        assert_eq(null_typed_table.abi_version, 1, "list_v1_null_request.abi_version")
+        assert_true(null_typed_table.schema_version == 1, "list_v1_null_request.schema_version")
+        assert_eq(null_typed_table.object_table_abi_version, 1, "list_v1_null_request.object_table_abi_version")
 
-        too_many_read_request = NativeObjectReadBatchRequestV4(
-            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV4),
+        too_many_read_request = NativeObjectReadBatchRequestV1(
+            struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV1),
             context_id=0,
             items=None,
             count=limits.max_object_read_batch_count + 1,
             flags=0,
             reserved=0,
         )
-        too_many_read_response = NativeObjectReadBatchSizeResponseV4()
-        rc = native.lib.haruki_assetstudio_context_read_objects_size_v4(
+        too_many_read_response = NativeObjectReadBatchSizeResponseV1()
+        rc = native.lib.haruki_assetstudio_context_read_objects_size_v1(
             ctypes.byref(too_many_read_request),
             ctypes.byref(too_many_read_response),
         )
-        assert_eq(rc, 2, "read_objects_size_v4_too_many.rc")
-        assert_eq(too_many_read_response.status, 2, "read_objects_size_v4_too_many.status")
-        assert_eq(too_many_read_response.error_code, 2, "read_objects_size_v4_too_many.error_code")
+        assert_eq(rc, 2, "read_objects_size_v1_too_many.rc")
+        assert_eq(too_many_read_response.status, 2, "read_objects_size_v1_too_many.status")
+        assert_eq(too_many_read_response.error_code, 2, "read_objects_size_v1_too_many.error_code")
 
-        rc, opened_v2, opened_unity_version = native.open_v2(args.input_path, args.unity_version)
-        assert_eq(rc, 0, "open_v2.rc")
-        assert_eq(opened_v2.status, 0, "open_v2.status")
-        assert_eq(opened_v2.error_code, 0, "open_v2.error_code")
-        assert_eq(opened_v2.struct_size, ctypes.sizeof(NativeContextOpenResponse), "open_v2.struct_size")
-        assert_eq(opened_v2.abi_version, 1, "open_v2.abi_version")
-        assert_true(opened_v2.schema_version >= 2, "open_v2.schema_version")
-        assert_eq(opened_v2.context_abi_version, 1, "open_v2.context_abi_version")
-        opened_context = opened_v2.context_id
+        rc, opened_v1, opened_unity_version = native.open_v1(args.input_path, args.unity_version)
+        assert_eq(rc, 0, "open_v1.rc")
+        assert_eq(opened_v1.status, 0, "open_v1.status")
+        assert_eq(opened_v1.error_code, 0, "open_v1.error_code")
+        assert_eq(opened_v1.struct_size, ctypes.sizeof(NativeContextOpenResponse), "open_v1.struct_size")
+        assert_eq(opened_v1.abi_version, 1, "open_v1.abi_version")
+        assert_true(opened_v1.schema_version == 1, "open_v1.schema_version")
+        assert_eq(opened_v1.context_abi_version, 1, "open_v1.context_abi_version")
+        opened_context = opened_v1.context_id
         assert_true(opened_context, "open.context_id")
-        assert_eq(opened_unity_version, args.unity_version, "open_v2.unity_version")
-        assert_true(opened_v2.object_index_count > 0, "open_v2.object_index_count")
-        assert_true(opened_v2.exportable_asset_count > 0, "open_v2.exportable_asset_count")
-        assert_eq(opened_v2.has_more_assets, 1, "open_v2.has_more_assets")
+        assert_eq(opened_unity_version, args.unity_version, "open_v1.unity_version")
+        assert_true(opened_v1.object_index_count > 0, "open_v1.object_index_count")
+        assert_true(opened_v1.exportable_asset_count > 0, "open_v1.exportable_asset_count")
+        assert_eq(opened_v1.has_more_assets, 1, "open_v1.has_more_assets")
 
-        rc, second_open_v2, _ = native.open_v2(args.input_path, args.unity_version)
-        assert_eq(rc, 0, "second_open_v2.rc")
-        assert_eq(second_open_v2.status, 0, "second_open_v2.status")
-        assert_eq(second_open_v2.error_code, 0, "second_open_v2.error_code")
-        opened_context2 = second_open_v2.context_id
-        assert_true(opened_context2 and opened_context2 != opened_context, "second_open_v2.context_id")
-        assert_eq(second_open_v2.object_index_count, opened_v2.object_index_count, "second_open_v2.object_index_count")
+        rc, second_open_v1, _ = native.open_v1(args.input_path, args.unity_version)
+        assert_eq(rc, 0, "second_open_v1.rc")
+        assert_eq(second_open_v1.status, 0, "second_open_v1.status")
+        assert_eq(second_open_v1.error_code, 0, "second_open_v1.error_code")
+        opened_context2 = second_open_v1.context_id
+        assert_true(opened_context2 and opened_context2 != opened_context, "second_open_v1.context_id")
+        assert_eq(second_open_v1.object_index_count, opened_v1.object_index_count, "second_open_v1.object_index_count")
 
-        rc, second_typed_table, second_typed_assets = native.list_objects_v2(opened_context2, offset=0, limit=args.list_limit)
-        assert_eq(rc, 0, "second_list_v2.rc")
-        assert_eq(second_typed_table.status, 0, "second_list_v2.status")
-        assert_eq(second_typed_table.error_code, 0, "second_list_v2.error_code")
-        assert_true(len(second_typed_assets) > 0, "second_list_v2.assets")
+        size_rc, _second_size_table, rc, second_typed_table, second_typed_assets, _ = native.list_objects_v1(opened_context2, offset=0, limit=args.list_limit)
+        assert_eq(rc, 0, "second_list_v1.rc")
+        assert_eq(second_typed_table.status, 0, "second_list_v1.status")
+        assert_eq(second_typed_table.error_code, 0, "second_list_v1.error_code")
+        assert_true(len(second_typed_assets) > 0, "second_list_v1.assets")
 
-        rc, second_closed = native.close_v2(opened_context2)
+        rc, second_closed = native.close_v1(opened_context2)
         opened_context2 = None
-        assert_eq(rc, 0, "second_close_v2.rc")
-        assert_eq(second_closed.status, 0, "second_close_v2.status")
+        assert_eq(rc, 0, "second_close_v1.rc")
+        assert_eq(second_closed.status, 0, "second_close_v1.status")
 
         too_large_limit = limits.max_object_table_page_limit + 1
-        rc, too_large_list_table, _ = native.list_objects_v2(opened_context, offset=0, limit=too_large_limit)
-        assert_eq(rc, 2, "list_v2_too_large_limit.rc")
-        assert_eq(too_large_list_table.status, 2, "list_v2_too_large_limit.status")
-        assert_eq(too_large_list_table.error_code, 2, "list_v2_too_large_limit.error_code")
+        size_rc, too_large_list_table, rc, _too_large_into_table, _too_large_assets, _ = native.list_objects_v1(opened_context, offset=0, limit=too_large_limit)
+        assert_eq(rc, 2, "list_v1_too_large_limit.rc")
+        assert_eq(too_large_list_table.status, 2, "list_v1_too_large_limit.status")
+        assert_eq(too_large_list_table.error_code, 2, "list_v1_too_large_limit.error_code")
 
-        rc, typed_table, typed_assets = native.list_objects_v2(opened_context, offset=0, limit=args.list_limit)
-        assert_eq(rc, 0, "list_v2.rc")
-        assert_eq(typed_table.status, 0, "list_v2.status")
-        assert_eq(typed_table.error_code, 0, "list_v2.error_code")
-        assert_eq(typed_table.struct_size, ctypes.sizeof(NativeObjectTable), "list_v2.struct_size")
-        assert_eq(typed_table.abi_version, 1, "list_v2.abi_version")
-        assert_true(typed_table.schema_version >= 2, "list_v2.schema_version")
-        assert_eq(typed_table.object_table_abi_version, 3, "list_v2.object_table_abi_version")
-        assert_true(typed_table.total_count >= typed_table.returned_count, "list_v2.total_count")
-        assert_eq(typed_table.returned_count, len(typed_assets), "list_v2.returned_count")
-        assert_true(len(typed_assets) > 0, "list_v2.assets_len")
-        assert_true(typed_assets[0]["estimated_payload_capacity"] >= 0, "list_v2.first.estimated_payload_capacity")
+        size_rc, _typed_size_table, rc, typed_table, typed_assets, _ = native.list_objects_v1(opened_context, offset=0, limit=args.list_limit)
+        assert_eq(rc, 0, "list_v1.rc")
+        assert_eq(typed_table.status, 0, "list_v1.status")
+        assert_eq(typed_table.error_code, 0, "list_v1.error_code")
+        assert_eq(typed_table.struct_size, ctypes.sizeof(NativeObjectTable), "list_v1.struct_size")
+        assert_eq(typed_table.abi_version, 1, "list_v1.abi_version")
+        assert_true(typed_table.schema_version == 1, "list_v1.schema_version")
+        assert_eq(typed_table.object_table_abi_version, 1, "list_v1.object_table_abi_version")
+        assert_true(typed_table.total_count >= typed_table.returned_count, "list_v1.total_count")
+        assert_eq(typed_table.returned_count, len(typed_assets), "list_v1.returned_count")
+        assert_true(len(typed_assets) > 0, "list_v1.assets_len")
+        assert_true(typed_assets[0]["estimated_payload_capacity"] >= 0, "list_v1.first.estimated_payload_capacity")
 
-        size_rc, size_table_v3, into_rc, typed_table_v3, typed_assets_v3, _ = native.list_objects_v3(
+        size_rc, size_table_v1, into_rc, typed_table_v1, typed_assets_v1, _ = native.list_objects_v1(
             opened_context,
             offset=0,
             limit=args.list_limit,
         )
-        assert_eq(size_rc, 0, "list_size_v3.rc")
-        assert_eq(size_table_v3.status, 0, "list_size_v3.status")
-        assert_eq(size_table_v3.error_code, 0, "list_size_v3.error_code")
-        assert_eq(size_table_v3.buffer_len, typed_table.buffer_len, "list_size_v3.buffer_len")
-        assert_eq(size_table_v3.string_data_len, typed_table.string_data_len, "list_size_v3.string_data_len")
-        assert_eq(size_table_v3.returned_count, typed_table.returned_count, "list_size_v3.returned_count")
-        assert_eq(into_rc, 0, "list_into_v3.rc")
-        assert_eq(typed_table_v3.status, 0, "list_into_v3.status")
-        assert_eq(typed_table_v3.error_code, 0, "list_into_v3.error_code")
-        assert_eq(typed_table_v3.buffer_len, size_table_v3.buffer_len, "list_into_v3.buffer_len")
-        assert_eq(typed_table_v3.string_data_len, size_table_v3.string_data_len, "list_into_v3.string_data_len")
-        assert_eq(len(typed_assets_v3), len(typed_assets), "list_into_v3.assets_len")
-        assert_eq(typed_assets_v3[0]["path_id"], typed_assets[0]["path_id"], "list_into_v3.first.path_id")
-        assert_eq(typed_assets_v3[0]["type"], typed_assets[0]["type"], "list_into_v3.first.type")
+        assert_eq(size_rc, 0, "list_size_v1.rc")
+        assert_eq(size_table_v1.status, 0, "list_size_v1.status")
+        assert_eq(size_table_v1.error_code, 0, "list_size_v1.error_code")
+        assert_eq(size_table_v1.buffer_len, typed_table.buffer_len, "list_size_v1.buffer_len")
+        assert_eq(size_table_v1.string_data_len, typed_table.string_data_len, "list_size_v1.string_data_len")
+        assert_eq(size_table_v1.returned_count, typed_table.returned_count, "list_size_v1.returned_count")
+        assert_eq(into_rc, 0, "list_into_v1.rc")
+        assert_eq(typed_table_v1.status, 0, "list_into_v1.status")
+        assert_eq(typed_table_v1.error_code, 0, "list_into_v1.error_code")
+        assert_eq(typed_table_v1.buffer_len, size_table_v1.buffer_len, "list_into_v1.buffer_len")
+        assert_eq(typed_table_v1.string_data_len, size_table_v1.string_data_len, "list_into_v1.string_data_len")
+        assert_eq(len(typed_assets_v1), len(typed_assets), "list_into_v1.assets_len")
+        assert_eq(typed_assets_v1[0]["path_id"], typed_assets[0]["path_id"], "list_into_v1.first.path_id")
+        assert_eq(typed_assets_v1[0]["type"], typed_assets[0]["type"], "list_into_v1.first.type")
 
-        if size_table_v3.buffer_len > 0:
-            _, _, too_small_rc, too_small_table_v3, _, _ = native.list_objects_v3(
+        if size_table_v1.buffer_len > 0:
+            _, _, too_small_rc, too_small_table_v1, _, _ = native.list_objects_v1(
                 opened_context,
                 offset=0,
                 limit=args.list_limit,
                 shrink_buffer_by=1,
             )
-            assert_eq(too_small_rc, 8, "list_into_v3_too_small.rc")
-            assert_eq(too_small_table_v3.status, 8, "list_into_v3_too_small.status")
-            assert_eq(too_small_table_v3.error_code, 8, "list_into_v3_too_small.error_code")
-            assert_eq(too_small_table_v3.buffer_len, size_table_v3.buffer_len, "list_into_v3_too_small.required_buffer_len")
+            assert_eq(too_small_rc, 8, "list_into_v1_too_small.rc")
+            assert_eq(too_small_table_v1.status, 8, "list_into_v1_too_small.status")
+            assert_eq(too_small_table_v1.error_code, 8, "list_into_v1_too_small.error_code")
+            assert_eq(too_small_table_v1.buffer_len, size_table_v1.buffer_len, "list_into_v1_too_small.required_buffer_len")
 
-        rc, lookup_table, lookup_assets = native.lookup_objects_v1(
+        size_rc, _lookup_size, rc, lookup_table, lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=1,
             path_id=typed_assets[0]["path_id"],
@@ -1458,12 +1458,12 @@ def main():
         assert_eq(lookup_table.status, 0, "lookup_v1_path.status")
         assert_eq(lookup_table.error_code, 0, "lookup_v1_path.error_code")
         assert_eq(lookup_table.struct_size, ctypes.sizeof(NativeObjectTable), "lookup_v1_path.struct_size")
-        assert_eq(lookup_table.object_table_abi_version, 3, "lookup_v1_path.object_table_abi_version")
+        assert_eq(lookup_table.object_table_abi_version, 1, "lookup_v1_path.object_table_abi_version")
         assert_eq(lookup_table.total_count, 1, "lookup_v1_path.total_count")
         assert_eq(len(lookup_assets), 1, "lookup_v1_path.assets_len")
         assert_eq(lookup_assets[0]["path_id"], typed_assets[0]["path_id"], "lookup_v1_path.path_id")
 
-        rc, too_large_lookup_table, _ = native.lookup_objects_v1(
+        size_rc, too_large_lookup_table, rc, _too_large_lookup_into, _too_large_lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=1,
             path_id=typed_assets[0]["path_id"],
@@ -1473,38 +1473,38 @@ def main():
         assert_eq(too_large_lookup_table.status, 2, "lookup_v1_too_large_limit.status")
         assert_eq(too_large_lookup_table.error_code, 2, "lookup_v1_too_large_limit.error_code")
 
-        lookup_size_rc, lookup_size_v2, lookup_into_rc, lookup_table_v2, lookup_assets_v2, _ = native.lookup_objects_v2(
+        lookup_size_rc, lookup_size_v1, lookup_into_rc, lookup_table_v1, lookup_assets_v1, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=1,
             path_id=typed_assets[0]["path_id"],
             limit=4,
         )
-        assert_eq(lookup_size_rc, 0, "lookup_size_v2_path.rc")
-        assert_eq(lookup_size_v2.status, 0, "lookup_size_v2_path.status")
-        assert_eq(lookup_size_v2.error_code, 0, "lookup_size_v2_path.error_code")
-        assert_eq(lookup_size_v2.buffer_len, lookup_table.buffer_len, "lookup_size_v2_path.buffer_len")
-        assert_eq(lookup_size_v2.string_data_len, lookup_table.string_data_len, "lookup_size_v2_path.string_data_len")
-        assert_eq(lookup_into_rc, 0, "lookup_into_v2_path.rc")
-        assert_eq(lookup_table_v2.status, 0, "lookup_into_v2_path.status")
-        assert_eq(lookup_table_v2.error_code, 0, "lookup_into_v2_path.error_code")
-        assert_eq(lookup_table_v2.total_count, lookup_table.total_count, "lookup_into_v2_path.total_count")
-        assert_eq(len(lookup_assets_v2), len(lookup_assets), "lookup_into_v2_path.assets_len")
-        assert_eq(lookup_assets_v2[0]["path_id"], lookup_assets[0]["path_id"], "lookup_into_v2_path.path_id")
+        assert_eq(lookup_size_rc, 0, "lookup_size_v1_path.rc")
+        assert_eq(lookup_size_v1.status, 0, "lookup_size_v1_path.status")
+        assert_eq(lookup_size_v1.error_code, 0, "lookup_size_v1_path.error_code")
+        assert_eq(lookup_size_v1.buffer_len, lookup_table.buffer_len, "lookup_size_v1_path.buffer_len")
+        assert_eq(lookup_size_v1.string_data_len, lookup_table.string_data_len, "lookup_size_v1_path.string_data_len")
+        assert_eq(lookup_into_rc, 0, "lookup_into_v1_path.rc")
+        assert_eq(lookup_table_v1.status, 0, "lookup_into_v1_path.status")
+        assert_eq(lookup_table_v1.error_code, 0, "lookup_into_v1_path.error_code")
+        assert_eq(lookup_table_v1.total_count, lookup_table.total_count, "lookup_into_v1_path.total_count")
+        assert_eq(len(lookup_assets_v1), len(lookup_assets), "lookup_into_v1_path.assets_len")
+        assert_eq(lookup_assets_v1[0]["path_id"], lookup_assets[0]["path_id"], "lookup_into_v1_path.path_id")
 
-        if lookup_size_v2.buffer_len > 0:
-            _, _, lookup_small_rc, lookup_small_v2, _, _ = native.lookup_objects_v2(
+        if lookup_size_v1.buffer_len > 0:
+            _, _, lookup_small_rc, lookup_small_v1, _, _ = native.lookup_objects_v1(
                 opened_context,
                 lookup_kind=1,
                 path_id=typed_assets[0]["path_id"],
                 limit=4,
                 shrink_buffer_by=1,
             )
-            assert_eq(lookup_small_rc, 8, "lookup_into_v2_too_small.rc")
-            assert_eq(lookup_small_v2.status, 8, "lookup_into_v2_too_small.status")
-            assert_eq(lookup_small_v2.error_code, 8, "lookup_into_v2_too_small.error_code")
-            assert_eq(lookup_small_v2.buffer_len, lookup_size_v2.buffer_len, "lookup_into_v2_too_small.required_buffer_len")
+            assert_eq(lookup_small_rc, 8, "lookup_into_v1_too_small.rc")
+            assert_eq(lookup_small_v1.status, 8, "lookup_into_v1_too_small.status")
+            assert_eq(lookup_small_v1.error_code, 8, "lookup_into_v1_too_small.error_code")
+            assert_eq(lookup_small_v1.buffer_len, lookup_size_v1.buffer_len, "lookup_into_v1_too_small.required_buffer_len")
 
-        rc, missing_lookup_table, missing_lookup_assets = native.lookup_objects_v1(
+        size_rc, _missing_lookup_size, rc, missing_lookup_table, missing_lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=1,
             path_id=-9223372036854775808,
@@ -1515,7 +1515,7 @@ def main():
         assert_eq(missing_lookup_table.total_count, 0, "lookup_v1_missing_path.total_count")
         assert_eq(len(missing_lookup_assets), 0, "lookup_v1_missing_path.assets_len")
 
-        rc, invalid_lookup_table, _ = native.lookup_objects_v1(
+        size_rc, invalid_lookup_table, rc, _invalid_lookup_into, _invalid_lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=99,
             query="Texture2D",
@@ -1525,7 +1525,7 @@ def main():
         assert_eq(invalid_lookup_table.status, 2, "lookup_v1_invalid_kind.status")
         assert_eq(invalid_lookup_table.error_code, 2, "lookup_v1_invalid_kind.error_code")
 
-        rc, type_lookup_table, type_lookup_assets = native.lookup_objects_v1(
+        size_rc, _type_lookup_size, rc, type_lookup_table, type_lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=4,
             query=typed_assets[0]["type"],
@@ -1538,7 +1538,7 @@ def main():
         assert_eq(type_lookup_assets[0]["type"], typed_assets[0]["type"], "lookup_v1_type.type")
 
         type_fragment = typed_assets[0]["type"][: max(1, min(4, len(typed_assets[0]["type"])))]
-        rc, contains_lookup_table, contains_lookup_assets = native.lookup_objects_v1(
+        size_rc, _contains_lookup_size, rc, contains_lookup_table, contains_lookup_assets, _ = native.lookup_objects_v1(
             opened_context,
             lookup_kind=4,
             query=type_fragment.lower(),
@@ -1553,17 +1553,17 @@ def main():
         read_asset = None
         read_filter = None
         for candidate_type in ("TextAsset", "MonoBehaviour", "Shader", "Font"):
-            rc, typed_filtered_table, typed_filtered_assets = native.list_objects_v2(
+            size_rc, _typed_filtered_size, rc, typed_filtered_table, typed_filtered_assets, _ = native.list_objects_v1(
                 opened_context,
                 offset=0,
                 limit=1,
                 asset_types_csv=candidate_type,
             )
-            assert_eq(rc, 0, f"list_v2_filter.{candidate_type}.rc")
-            assert_eq(typed_filtered_table.status, 0, f"list_v2_filter.{candidate_type}.status")
+            assert_eq(rc, 0, f"list_v1_filter.{candidate_type}.rc")
+            assert_eq(typed_filtered_table.status, 0, f"list_v1_filter.{candidate_type}.status")
             if typed_filtered_assets:
-                assert_eq(len(typed_filtered_assets), 1, f"list_v2_filter.{candidate_type}.assets_len")
-                assert_eq(typed_filtered_assets[0]["type"], candidate_type, f"list_v2_filter.{candidate_type}.type")
+                assert_eq(len(typed_filtered_assets), 1, f"list_v1_filter.{candidate_type}.assets_len")
+                assert_eq(typed_filtered_assets[0]["type"], candidate_type, f"list_v1_filter.{candidate_type}.type")
                 read_asset = typed_filtered_assets[0]
                 read_filter = candidate_type
                 break
@@ -1576,113 +1576,92 @@ def main():
         assert_true(first_path_id is not None, "read_asset.path_id")
         default_read_kind = "raw" if read_asset.get("type") == "Texture2D" else "auto"
 
-        rc, read_v2 = native.read_objects_v2(
+        rc, read_v1 = native.read_objects_handle_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(rc, 0, "read_objects_v2.rc")
-        assert_eq(read_v2.status, 0, "read_objects_v2.status")
-        assert_eq(read_v2.error_code, 0, "read_objects_v2.error_code")
-        assert_eq(read_v2.abi_version, 1, "read_objects_v2.abi_version")
-        assert_eq(read_v2.object_read_batch_abi_version, 1, "read_objects_v2.batch_abi_version")
-        assert_eq(read_v2.returned_count, 1, "read_objects_v2.returned_count")
-        assert_eq(read_v2.failed_count, 0, "read_objects_v2.failed_count")
-        assert_true(read_v2.payload_len > 0, "read_objects_v2.payload_len")
-        assert_eq(read_v2.items[0].status, 0, "read_objects_v2.item.status")
-        assert_eq(read_v2.items[0].payload_offset, 0, "read_objects_v2.item.payload_offset")
-        assert_eq(read_v2.items[0].payload_len, read_v2.payload_len, "read_objects_v2.item.payload_len")
-        read_v2_payload = ctypes.string_at(read_v2.payload, read_v2.payload_len)
-        if read_v2.items_buffer:
-            native.lib.haruki_assetstudio_free_buffer(read_v2.items_buffer)
-        if read_v2.payload:
-            native.lib.haruki_assetstudio_free_buffer(read_v2.payload)
+        assert_eq(rc, 0, "read_objects_handle_v1.rc")
+        assert_eq(read_v1.status, 0, "read_objects_handle_v1.status")
+        assert_eq(read_v1.error_code, 0, "read_objects_handle_v1.error_code")
+        assert_eq(read_v1.abi_version, 1, "read_objects_handle_v1.abi_version")
+        assert_eq(read_v1.object_read_batch_abi_version, 1, "read_objects_handle_v1.batch_abi_version")
+        assert_eq(read_v1.object_read_batch_handle_abi_version, 1, "read_objects_handle_v1.handle_abi_version")
+        assert_eq(read_v1.returned_count, 1, "read_objects_handle_v1.returned_count")
+        assert_eq(read_v1.failed_count, 0, "read_objects_handle_v1.failed_count")
+        assert_true(read_v1.payload_len > 0, "read_objects_handle_v1.payload_len")
+        assert_eq(read_v1.items[0].status, 0, "read_objects_handle_v1.item.status")
+        assert_eq(read_v1.items[0].payload_offset, 0, "read_objects_handle_v1.item.payload_offset")
+        assert_eq(read_v1.items[0].payload_len, read_v1.payload_len, "read_objects_handle_v1.item.payload_len")
+        assert_true(read_v1.result_handle > 0, "read_objects_handle_v1.result_handle")
+        read_v1_payload = ctypes.string_at(read_v1.payload, read_v1.payload_len)
+        assert_eq(read_v1_payload, read_v1_payload, "read_objects_v1.payload")
+        assert_eq(native.lib.haruki_assetstudio_result_free(read_v1.result_handle), 0, "read_objects_handle_v1.free")
+        assert_eq(native.lib.haruki_assetstudio_result_free(read_v1.result_handle), 4, "read_objects_handle_v1.double_free")
 
-        rc, read_v3 = native.read_objects_v3(
+        size_rc, size_v1, into_rc, read_v1, items_buffer_v1, payload_buffer_v1 = native.read_objects_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(rc, 0, "read_objects_v3.rc")
-        assert_eq(read_v3.status, 0, "read_objects_v3.status")
-        assert_eq(read_v3.error_code, 0, "read_objects_v3.error_code")
-        assert_eq(read_v3.abi_version, 1, "read_objects_v3.abi_version")
-        assert_eq(read_v3.object_read_batch_abi_version, 1, "read_objects_v3.batch_abi_version")
-        assert_eq(read_v3.object_read_batch_handle_abi_version, 1, "read_objects_v3.handle_abi_version")
-        assert_eq(read_v3.returned_count, 1, "read_objects_v3.returned_count")
-        assert_eq(read_v3.failed_count, 0, "read_objects_v3.failed_count")
-        assert_true(read_v3.payload_len > 0, "read_objects_v3.payload_len")
-        assert_eq(read_v3.items[0].status, 0, "read_objects_v3.item.status")
-        assert_eq(read_v3.items[0].payload_offset, 0, "read_objects_v3.item.payload_offset")
-        assert_eq(read_v3.items[0].payload_len, read_v3.payload_len, "read_objects_v3.item.payload_len")
-        assert_true(read_v3.result_handle > 0, "read_objects_v3.result_handle")
-        read_v3_payload = ctypes.string_at(read_v3.payload, read_v3.payload_len)
-        assert_eq(read_v2_payload, read_v3_payload, "read_objects_v2.payload")
-        assert_eq(native.lib.haruki_assetstudio_result_free(read_v3.result_handle), 0, "read_objects_v3.free")
-        assert_eq(native.lib.haruki_assetstudio_result_free(read_v3.result_handle), 4, "read_objects_v3.double_free")
+        assert_eq(size_rc, 0, "read_objects_size_v1.rc")
+        assert_eq(size_v1.struct_size, ctypes.sizeof(NativeObjectReadBatchSizeResponseV1), "read_objects_size_v1.struct_size")
+        assert_eq(size_v1.status, 0, "read_objects_size_v1.status")
+        assert_eq(size_v1.object_read_batch_into_abi_version, 1, "read_objects_size_v1.into_abi_version")
+        assert_true(size_v1.required_items_buffer_len >= ctypes.sizeof(NativeObjectReadItemResponseV1), "read_objects_size_v1.items_buffer_len")
+        assert_eq(size_v1.required_payload_len, len(read_v1_payload), "read_objects_size_v1.payload_len")
+        assert_eq(into_rc, 0, "read_objects_into_v1.rc")
+        assert_eq(read_v1.struct_size, ctypes.sizeof(NativeObjectReadBatchIntoResponseV1), "read_objects_into_v1.struct_size")
+        assert_eq(read_v1.status, 0, "read_objects_into_v1.status")
+        assert_eq(read_v1.error_code, 0, "read_objects_into_v1.error_code")
+        assert_eq(read_v1.returned_count, 1, "read_objects_into_v1.returned_count")
+        assert_eq(read_v1.failed_count, 0, "read_objects_into_v1.failed_count")
+        assert_eq(read_v1.required_items_buffer_len, size_v1.required_items_buffer_len, "read_objects_into_v1.required_items_buffer_len")
+        assert_eq(read_v1.required_payload_len, size_v1.required_payload_len, "read_objects_into_v1.required_payload_len")
+        assert_eq(read_v1.items[0].payload_offset, 0, "read_objects_into_v1.item.payload_offset")
+        assert_eq(read_v1.items[0].payload_len, read_v1.payload_len, "read_objects_into_v1.item.payload_len")
+        assert_eq(read_v1.items[0].error_message_len, 0, "read_objects_into_v1.item.error_message_len")
+        read_v1_payload = ctypes.string_at(read_v1.payload, read_v1.payload_len)
+        assert_eq(read_v1_payload, read_v1_payload, "read_objects_into_v1.payload")
 
-        size_rc, size_v4, into_rc, read_v4, items_buffer_v4, payload_buffer_v4 = native.read_objects_v4(
-            opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
-        )
-        assert_eq(size_rc, 0, "read_objects_size_v4.rc")
-        assert_eq(size_v4.struct_size, ctypes.sizeof(NativeObjectReadBatchSizeResponseV4), "read_objects_size_v4.struct_size")
-        assert_eq(size_v4.status, 0, "read_objects_size_v4.status")
-        assert_eq(size_v4.object_read_batch_into_abi_version, 1, "read_objects_size_v4.into_abi_version")
-        assert_true(size_v4.required_items_buffer_len >= ctypes.sizeof(NativeObjectReadItemResponseV4), "read_objects_size_v4.items_buffer_len")
-        assert_eq(size_v4.required_payload_len, len(read_v3_payload), "read_objects_size_v4.payload_len")
-        assert_eq(into_rc, 0, "read_objects_into_v4.rc")
-        assert_eq(read_v4.struct_size, ctypes.sizeof(NativeObjectReadBatchIntoResponseV4), "read_objects_into_v4.struct_size")
-        assert_eq(read_v4.status, 0, "read_objects_into_v4.status")
-        assert_eq(read_v4.error_code, 0, "read_objects_into_v4.error_code")
-        assert_eq(read_v4.returned_count, 1, "read_objects_into_v4.returned_count")
-        assert_eq(read_v4.failed_count, 0, "read_objects_into_v4.failed_count")
-        assert_eq(read_v4.required_items_buffer_len, size_v4.required_items_buffer_len, "read_objects_into_v4.required_items_buffer_len")
-        assert_eq(read_v4.required_payload_len, size_v4.required_payload_len, "read_objects_into_v4.required_payload_len")
-        assert_eq(read_v4.items[0].payload_offset, 0, "read_objects_into_v4.item.payload_offset")
-        assert_eq(read_v4.items[0].payload_len, read_v4.payload_len, "read_objects_into_v4.item.payload_len")
-        assert_eq(read_v4.items[0].error_message_len, 0, "read_objects_into_v4.item.error_message_len")
-        read_v4_payload = ctypes.string_at(read_v4.payload, read_v4.payload_len)
-        assert_eq(read_v4_payload, read_v3_payload, "read_objects_into_v4.payload")
-
-        size_index_rc, size_index_v5, into_index_rc, read_index_v5, _, _ = native.read_objects_by_index_v5(
+        size_index_rc, size_index_v1, into_index_rc, read_index_v1, _, _ = native.read_objects_by_index_v1(
             opened_context,
             [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(size_index_rc, 0, "read_objects_by_index_size_v5.rc")
-        assert_eq(size_index_v5.status, 0, "read_objects_by_index_size_v5.status")
-        assert_eq(size_index_v5.required_payload_len, len(read_v3_payload), "read_objects_by_index_size_v5.payload_len")
-        assert_eq(into_index_rc, 0, "read_objects_by_index_into_v5.rc")
-        assert_eq(read_index_v5.status, 0, "read_objects_by_index_into_v5.status")
-        assert_eq(read_index_v5.returned_count, 1, "read_objects_by_index_into_v5.returned_count")
-        assert_eq(read_index_v5.failed_count, 0, "read_objects_by_index_into_v5.failed_count")
-        assert_eq(read_index_v5.items[0].path_id, first_path_id, "read_objects_by_index_into_v5.item.path_id")
-        read_index_payload = ctypes.string_at(read_index_v5.payload, read_index_v5.payload_len)
-        assert_eq(read_index_payload, read_v4_payload, "read_objects_by_index_into_v5.payload")
+        assert_eq(size_index_rc, 0, "read_objects_by_index_size_v1.rc")
+        assert_eq(size_index_v1.status, 0, "read_objects_by_index_size_v1.status")
+        assert_eq(size_index_v1.required_payload_len, len(read_v1_payload), "read_objects_by_index_size_v1.payload_len")
+        assert_eq(into_index_rc, 0, "read_objects_by_index_into_v1.rc")
+        assert_eq(read_index_v1.status, 0, "read_objects_by_index_into_v1.status")
+        assert_eq(read_index_v1.returned_count, 1, "read_objects_by_index_into_v1.returned_count")
+        assert_eq(read_index_v1.failed_count, 0, "read_objects_by_index_into_v1.failed_count")
+        assert_eq(read_index_v1.items[0].path_id, first_path_id, "read_objects_by_index_into_v1.item.path_id")
+        read_index_payload = ctypes.string_at(read_index_v1.payload, read_index_v1.payload_len)
+        assert_eq(read_index_payload, read_v1_payload, "read_objects_by_index_into_v1.payload")
 
-        direct_v6_rc, direct_v6, _, _ = native.read_objects_direct_v6(
+        direct_v1_rc, direct_v1, _, _ = native.read_objects_direct_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
-            size_v4.required_items_buffer_len,
-            size_v4.required_payload_len,
+            size_v1.required_items_buffer_len,
+            size_v1.required_payload_len,
         )
-        assert_eq(direct_v6_rc, 0, "read_objects_direct_into_v6.rc")
-        assert_eq(direct_v6.status, 0, "read_objects_direct_into_v6.status")
-        assert_eq(direct_v6.returned_count, 1, "read_objects_direct_into_v6.returned_count")
-        assert_eq(direct_v6.failed_count, 0, "read_objects_direct_into_v6.failed_count")
-        direct_v6_payload = ctypes.string_at(direct_v6.payload, direct_v6.payload_len)
-        assert_eq(direct_v6_payload, read_v4_payload, "read_objects_direct_into_v6.payload")
+        assert_eq(direct_v1_rc, 0, "read_objects_direct_into_v1.rc")
+        assert_eq(direct_v1.status, 0, "read_objects_direct_into_v1.status")
+        assert_eq(direct_v1.returned_count, 1, "read_objects_direct_into_v1.returned_count")
+        assert_eq(direct_v1.failed_count, 0, "read_objects_direct_into_v1.failed_count")
+        direct_v1_payload = ctypes.string_at(direct_v1.payload, direct_v1.payload_len)
+        assert_eq(direct_v1_payload, read_v1_payload, "read_objects_direct_into_v1.payload")
 
-        direct_index_v6_rc, direct_index_v6, _, _ = native.read_objects_by_index_direct_v6(
+        direct_index_v1_rc, direct_index_v1, _, _ = native.read_objects_by_index_direct_v1(
             opened_context,
             [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
-            size_index_v5.required_items_buffer_len,
-            size_index_v5.required_payload_len,
+            size_index_v1.required_items_buffer_len,
+            size_index_v1.required_payload_len,
         )
-        assert_eq(direct_index_v6_rc, 0, "read_objects_by_index_direct_into_v6.rc")
-        assert_eq(direct_index_v6.status, 0, "read_objects_by_index_direct_into_v6.status")
-        assert_eq(direct_index_v6.returned_count, 1, "read_objects_by_index_direct_into_v6.returned_count")
-        assert_eq(direct_index_v6.failed_count, 0, "read_objects_by_index_direct_into_v6.failed_count")
-        direct_index_v6_payload = ctypes.string_at(direct_index_v6.payload, direct_index_v6.payload_len)
-        assert_eq(direct_index_v6_payload, read_v4_payload, "read_objects_by_index_direct_into_v6.payload")
+        assert_eq(direct_index_v1_rc, 0, "read_objects_by_index_direct_into_v1.rc")
+        assert_eq(direct_index_v1.status, 0, "read_objects_by_index_direct_into_v1.status")
+        assert_eq(direct_index_v1.returned_count, 1, "read_objects_by_index_direct_into_v1.returned_count")
+        assert_eq(direct_index_v1.failed_count, 0, "read_objects_by_index_direct_into_v1.failed_count")
+        direct_index_v1_payload = ctypes.string_at(direct_index_v1.payload, direct_index_v1.payload_len)
+        assert_eq(direct_index_v1_payload, read_v1_payload, "read_objects_by_index_direct_into_v1.payload")
 
         estimated_payload_capacity = int(read_asset.get("estimated_payload_capacity") or 0)
         raw_payload_capacity = int(read_asset.get("raw_payload_capacity") or 0)
@@ -1692,178 +1671,178 @@ def main():
         if default_read_kind in ("auto", "raw") and raw_payload_capacity > 0:
             assert_true(raw_payload_capacity >= 0, "read_asset.raw_payload_capacity")
         if default_read_kind in ("auto", "image") and image_payload_capacity > 0:
-            assert_true(image_payload_capacity >= len(read_v4_payload), "read_asset.image_payload_capacity")
+            assert_true(image_payload_capacity >= len(read_v1_payload), "read_asset.image_payload_capacity")
         if default_read_kind in ("auto", "text_bytes", "text") and text_payload_capacity > 0:
-            assert_true(text_payload_capacity >= len(read_v4_payload), "read_asset.text_payload_capacity")
+            assert_true(text_payload_capacity >= len(read_v1_payload), "read_asset.text_payload_capacity")
 
-        no_size_direct_index_v6_rc, no_size_direct_index_v6, _, _ = native.read_objects_by_index_direct_v6(
+        no_size_direct_index_v1_rc, no_size_direct_index_v1, _, _ = native.read_objects_by_index_direct_v1(
             opened_context,
             [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
-            size_index_v5.required_items_buffer_len,
-            size_index_v5.required_payload_len,
+            size_index_v1.required_items_buffer_len,
+            size_index_v1.required_payload_len,
         )
-        assert_eq(no_size_direct_index_v6_rc, 0, "read_objects_by_index_direct_into_v6_no_size.rc")
-        assert_eq(no_size_direct_index_v6.status, 0, "read_objects_by_index_direct_into_v6_no_size.status")
-        assert_eq(no_size_direct_index_v6.returned_count, 1, "read_objects_by_index_direct_into_v6_no_size.returned_count")
-        assert_eq(no_size_direct_index_v6.failed_count, 0, "read_objects_by_index_direct_into_v6_no_size.failed_count")
-        no_size_direct_index_v6_payload = ctypes.string_at(no_size_direct_index_v6.payload, no_size_direct_index_v6.payload_len)
-        assert_eq(no_size_direct_index_v6_payload, read_v4_payload, "read_objects_by_index_direct_into_v6_no_size.payload")
+        assert_eq(no_size_direct_index_v1_rc, 0, "read_objects_by_index_direct_into_v1_no_size.rc")
+        assert_eq(no_size_direct_index_v1.status, 0, "read_objects_by_index_direct_into_v1_no_size.status")
+        assert_eq(no_size_direct_index_v1.returned_count, 1, "read_objects_by_index_direct_into_v1_no_size.returned_count")
+        assert_eq(no_size_direct_index_v1.failed_count, 0, "read_objects_by_index_direct_into_v1_no_size.failed_count")
+        no_size_direct_index_v1_payload = ctypes.string_at(no_size_direct_index_v1.payload, no_size_direct_index_v1.payload_len)
+        assert_eq(no_size_direct_index_v1_payload, read_v1_payload, "read_objects_by_index_direct_into_v1_no_size.payload")
 
-        retry_direct_rc, retry_direct_v7, _, _ = native.read_objects_by_index_direct_retry_v7(
+        retry_direct_rc, retry_direct_v1, _, _ = native.read_objects_by_index_direct_retry_v1(
             opened_context,
             [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
-            size_index_v5.required_items_buffer_len,
-            size_index_v5.required_payload_len,
+            size_index_v1.required_items_buffer_len,
+            size_index_v1.required_payload_len,
         )
-        assert_eq(retry_direct_rc, 0, "read_objects_by_index_direct_retry_v7.rc")
-        assert_eq(retry_direct_v7.status, 0, "read_objects_by_index_direct_retry_v7.status")
-        assert_eq(retry_direct_v7.result_handle, 0, "read_objects_by_index_direct_retry_v7.result_handle")
-        retry_direct_payload = ctypes.string_at(retry_direct_v7.payload, retry_direct_v7.payload_len)
-        assert_eq(retry_direct_payload, read_v4_payload, "read_objects_by_index_direct_retry_v7.payload")
+        assert_eq(retry_direct_rc, 0, "read_objects_by_index_direct_retry_v1.rc")
+        assert_eq(retry_direct_v1.status, 0, "read_objects_by_index_direct_retry_v1.status")
+        assert_eq(retry_direct_v1.result_handle, 0, "read_objects_by_index_direct_retry_v1.result_handle")
+        retry_direct_payload = ctypes.string_at(retry_direct_v1.payload, retry_direct_v1.payload_len)
+        assert_eq(retry_direct_payload, read_v1_payload, "read_objects_by_index_direct_retry_v1.payload")
 
-        retry_alloc_rc, retry_alloc_v7, _, _ = native.read_objects_by_index_direct_retry_v7(
+        retry_alloc_rc, retry_alloc_v1, _, _ = native.read_objects_by_index_direct_retry_v1(
             opened_context,
             [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
             1,
             1,
         )
-        assert_eq(retry_alloc_rc, 0, "read_objects_by_index_direct_retry_v7_alloc.rc")
-        assert_eq(retry_alloc_v7.status, 0, "read_objects_by_index_direct_retry_v7_alloc.status")
-        assert_true(retry_alloc_v7.result_handle != 0, "read_objects_by_index_direct_retry_v7_alloc.result_handle")
-        assert_true((retry_alloc_v7.ownership_flags & 1) != 0, "read_objects_by_index_direct_retry_v7_alloc.ownership_items")
-        assert_true((retry_alloc_v7.ownership_flags & 2) != 0, "read_objects_by_index_direct_retry_v7_alloc.ownership_payload")
-        retry_alloc_payload = ctypes.string_at(retry_alloc_v7.payload, retry_alloc_v7.payload_len)
-        assert_eq(retry_alloc_payload, read_v4_payload, "read_objects_by_index_direct_retry_v7_alloc.payload")
-        assert_eq(native.lib.haruki_assetstudio_result_free(retry_alloc_v7.result_handle), 0, "read_objects_by_index_direct_retry_v7_alloc.free")
+        assert_eq(retry_alloc_rc, 0, "read_objects_by_index_direct_retry_v1_alloc.rc")
+        assert_eq(retry_alloc_v1.status, 0, "read_objects_by_index_direct_retry_v1_alloc.status")
+        assert_true(retry_alloc_v1.result_handle != 0, "read_objects_by_index_direct_retry_v1_alloc.result_handle")
+        assert_true((retry_alloc_v1.ownership_flags & 1) != 0, "read_objects_by_index_direct_retry_v1_alloc.ownership_items")
+        assert_true((retry_alloc_v1.ownership_flags & 2) != 0, "read_objects_by_index_direct_retry_v1_alloc.ownership_payload")
+        retry_alloc_payload = ctypes.string_at(retry_alloc_v1.payload, retry_alloc_v1.payload_len)
+        assert_eq(retry_alloc_payload, read_v1_payload, "read_objects_by_index_direct_retry_v1_alloc.payload")
+        assert_eq(native.lib.haruki_assetstudio_result_free(retry_alloc_v1.result_handle), 0, "read_objects_by_index_direct_retry_v1_alloc.free")
 
-        _, too_small_size, too_small_rc, too_small_v4, _, _ = native.read_objects_v4(
+        _, too_small_size, too_small_rc, too_small_v1, _, _ = native.read_objects_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
             shrink_payload_by=1,
         )
-        assert_eq(too_small_size.status, 0, "read_objects_into_v4_too_small.size_status")
-        assert_eq(too_small_rc, 8, "read_objects_into_v4_too_small.rc")
-        assert_eq(too_small_v4.status, 8, "read_objects_into_v4_too_small.status")
-        assert_eq(too_small_v4.error_code, 8, "read_objects_into_v4_too_small.error_code")
-        assert_eq(too_small_v4.required_payload_len, too_small_size.required_payload_len, "read_objects_into_v4_too_small.required_payload_len")
+        assert_eq(too_small_size.status, 0, "read_objects_into_v1_too_small.size_status")
+        assert_eq(too_small_rc, 8, "read_objects_into_v1_too_small.rc")
+        assert_eq(too_small_v1.status, 8, "read_objects_into_v1_too_small.status")
+        assert_eq(too_small_v1.error_code, 8, "read_objects_into_v1_too_small.error_code")
+        assert_eq(too_small_v1.required_payload_len, too_small_size.required_payload_len, "read_objects_into_v1_too_small.required_payload_len")
 
-        retry_size_rc, retry_size_v4, retry_small_rc, retry_small_v4, retry_rc, retry_v4, _, retry_payload_buffer = native.read_objects_v4_too_small_then_retry(
+        retry_size_rc, retry_size_v1, retry_small_rc, retry_small_v1, retry_rc, retry_v1, _, retry_payload_buffer = native.read_objects_v1_too_small_then_retry(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(retry_size_rc, 0, "read_objects_into_v4_too_small_retry.size_rc")
-        assert_eq(retry_size_v4.status, 0, "read_objects_into_v4_too_small_retry.size_status")
-        assert_eq(retry_small_rc, 8, "read_objects_into_v4_too_small_retry.small_rc")
-        assert_eq(retry_small_v4.status, 8, "read_objects_into_v4_too_small_retry.small_status")
-        assert_eq(retry_rc, 0, "read_objects_into_v4_too_small_retry.retry_rc")
-        assert_eq(retry_v4.status, 0, "read_objects_into_v4_too_small_retry.retry_status")
-        retry_payload = ctypes.string_at(retry_v4.payload, retry_v4.payload_len)
-        assert_eq(retry_payload, read_v3_payload, "read_objects_into_v4_too_small_retry.payload")
+        assert_eq(retry_size_rc, 0, "read_objects_into_v1_too_small_retry.size_rc")
+        assert_eq(retry_size_v1.status, 0, "read_objects_into_v1_too_small_retry.size_status")
+        assert_eq(retry_small_rc, 8, "read_objects_into_v1_too_small_retry.small_rc")
+        assert_eq(retry_small_v1.status, 8, "read_objects_into_v1_too_small_retry.small_status")
+        assert_eq(retry_rc, 0, "read_objects_into_v1_too_small_retry.retry_rc")
+        assert_eq(retry_v1.status, 0, "read_objects_into_v1_too_small_retry.retry_status")
+        retry_payload = ctypes.string_at(retry_v1.payload, retry_v1.payload_len)
+        assert_eq(retry_payload, read_v1_payload, "read_objects_into_v1_too_small_retry.payload")
 
         missing_id = -9223372036854775808
-        missing_size_rc, missing_size_v4, missing_into_rc, missing_v4, _, _ = native.read_objects_v4(
+        missing_size_rc, missing_size_v1, missing_into_rc, missing_v1, _, _ = native.read_objects_v1(
             opened_context,
             [{"path_id": missing_id, "kind": "auto", "image_format": "raw_rgba"}],
         )
-        assert_eq(missing_size_rc, 6, "read_objects_size_v4_missing.rc")
-        assert_eq(missing_size_v4.status, 6, "read_objects_size_v4_missing.status")
-        assert_eq(missing_size_v4.error_code, 6, "read_objects_size_v4_missing.error_code")
-        assert_eq(missing_size_v4.failed_count, 1, "read_objects_size_v4_missing.failed_count")
-        assert_true(missing_size_v4.required_string_data_len > 0, "read_objects_size_v4_missing.required_string_data_len")
-        assert_eq(missing_into_rc, 6, "read_objects_into_v4_missing.rc")
-        assert_eq(missing_v4.status, 6, "read_objects_into_v4_missing.status")
-        assert_eq(missing_v4.error_code, 6, "read_objects_into_v4_missing.error_code")
-        assert_eq(missing_v4.failed_count, 1, "read_objects_into_v4_missing.failed_count")
-        assert_eq(missing_v4.items[0].status, 6, "read_objects_into_v4_missing.item.status")
-        assert_eq(missing_v4.items[0].error_code, 6, "read_objects_into_v4_missing.item.error_code")
-        missing_strings = ctypes.string_at(missing_v4.string_data, missing_v4.string_data_len)
-        missing_message = native_string(missing_strings, missing_v4.items[0].error_message_offset, missing_v4.items[0].error_message_len)
-        assert_true("was not found" in missing_message, "read_objects_into_v4_missing.error_message")
+        assert_eq(missing_size_rc, 6, "read_objects_size_v1_missing.rc")
+        assert_eq(missing_size_v1.status, 6, "read_objects_size_v1_missing.status")
+        assert_eq(missing_size_v1.error_code, 6, "read_objects_size_v1_missing.error_code")
+        assert_eq(missing_size_v1.failed_count, 1, "read_objects_size_v1_missing.failed_count")
+        assert_true(missing_size_v1.required_string_data_len > 0, "read_objects_size_v1_missing.required_string_data_len")
+        assert_eq(missing_into_rc, 6, "read_objects_into_v1_missing.rc")
+        assert_eq(missing_v1.status, 6, "read_objects_into_v1_missing.status")
+        assert_eq(missing_v1.error_code, 6, "read_objects_into_v1_missing.error_code")
+        assert_eq(missing_v1.failed_count, 1, "read_objects_into_v1_missing.failed_count")
+        assert_eq(missing_v1.items[0].status, 6, "read_objects_into_v1_missing.item.status")
+        assert_eq(missing_v1.items[0].error_code, 6, "read_objects_into_v1_missing.item.error_code")
+        missing_strings = ctypes.string_at(missing_v1.string_data, missing_v1.string_data_len)
+        missing_message = native_string(missing_strings, missing_v1.items[0].error_message_offset, missing_v1.items[0].error_message_len)
+        assert_true("was not found" in missing_message, "read_objects_into_v1_missing.error_message")
 
-        partial_size_rc, partial_size_v4, partial_into_rc, partial_v4, _, _ = native.read_objects_v4(
+        partial_size_rc, partial_size_v1, partial_into_rc, partial_v1, _, _ = native.read_objects_v1(
             opened_context,
             [
                 {"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"},
                 {"path_id": missing_id, "kind": "auto", "image_format": "raw_rgba"},
             ],
         )
-        assert_eq(partial_size_rc, 0, "read_objects_size_v4_partial.rc")
-        assert_eq(partial_size_v4.status, 0, "read_objects_size_v4_partial.status")
-        assert_eq(partial_size_v4.error_code, 9, "read_objects_size_v4_partial.error_code")
-        assert_eq(partial_size_v4.returned_count, 2, "read_objects_size_v4_partial.returned_count")
-        assert_eq(partial_size_v4.failed_count, 1, "read_objects_size_v4_partial.failed_count")
-        assert_eq(partial_into_rc, 0, "read_objects_into_v4_partial.rc")
-        assert_eq(partial_v4.status, 0, "read_objects_into_v4_partial.status")
-        assert_eq(partial_v4.error_code, 9, "read_objects_into_v4_partial.error_code")
-        assert_eq(partial_v4.returned_count, 2, "read_objects_into_v4_partial.returned_count")
-        assert_eq(partial_v4.failed_count, 1, "read_objects_into_v4_partial.failed_count")
-        assert_eq(partial_v4.items[0].status, 0, "read_objects_into_v4_partial.first.status")
-        assert_eq(partial_v4.items[1].status, 6, "read_objects_into_v4_partial.second.status")
+        assert_eq(partial_size_rc, 0, "read_objects_size_v1_partial.rc")
+        assert_eq(partial_size_v1.status, 0, "read_objects_size_v1_partial.status")
+        assert_eq(partial_size_v1.error_code, 9, "read_objects_size_v1_partial.error_code")
+        assert_eq(partial_size_v1.returned_count, 2, "read_objects_size_v1_partial.returned_count")
+        assert_eq(partial_size_v1.failed_count, 1, "read_objects_size_v1_partial.failed_count")
+        assert_eq(partial_into_rc, 0, "read_objects_into_v1_partial.rc")
+        assert_eq(partial_v1.status, 0, "read_objects_into_v1_partial.status")
+        assert_eq(partial_v1.error_code, 9, "read_objects_into_v1_partial.error_code")
+        assert_eq(partial_v1.returned_count, 2, "read_objects_into_v1_partial.returned_count")
+        assert_eq(partial_v1.failed_count, 1, "read_objects_into_v1_partial.failed_count")
+        assert_eq(partial_v1.items[0].status, 0, "read_objects_into_v1_partial.first.status")
+        assert_eq(partial_v1.items[1].status, 6, "read_objects_into_v1_partial.second.status")
 
-        recovery_size_rc, _, recovery_into_rc, recovery_v4, _, _ = native.read_objects_v4(
+        recovery_size_rc, _, recovery_into_rc, recovery_v1, _, _ = native.read_objects_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(recovery_size_rc, 0, "read_objects_into_v4_recovery.size_rc")
-        assert_eq(recovery_into_rc, 0, "read_objects_into_v4_recovery.into_rc")
-        assert_eq(recovery_v4.status, 0, "read_objects_into_v4_recovery.status")
+        assert_eq(recovery_size_rc, 0, "read_objects_into_v1_recovery.size_rc")
+        assert_eq(recovery_into_rc, 0, "read_objects_into_v1_recovery.into_rc")
+        assert_eq(recovery_v1.status, 0, "read_objects_into_v1_recovery.status")
 
-        unsupported_size_rc, unsupported_size_v4, unsupported_into_rc, unsupported_v4, _, _ = native.read_objects_v4(
+        unsupported_size_rc, unsupported_size_v1, unsupported_into_rc, unsupported_v1, _, _ = native.read_objects_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "raw_rgba"}],
         )
-        assert_eq(unsupported_size_rc, 7, "read_objects_size_v4_unsupported.rc")
-        assert_eq(unsupported_size_v4.status, 7, "read_objects_size_v4_unsupported.status")
-        assert_eq(unsupported_size_v4.error_code, 7, "read_objects_size_v4_unsupported.error_code")
-        assert_eq(unsupported_size_v4.failed_count, 1, "read_objects_size_v4_unsupported.failed_count")
-        assert_eq(unsupported_into_rc, 7, "read_objects_into_v4_unsupported.rc")
-        assert_eq(unsupported_v4.status, 7, "read_objects_into_v4_unsupported.status")
-        assert_eq(unsupported_v4.error_code, 7, "read_objects_into_v4_unsupported.error_code")
-        assert_eq(unsupported_v4.items[0].status, 7, "read_objects_into_v4_unsupported.item.status")
-        assert_eq(unsupported_v4.items[0].error_code, 7, "read_objects_into_v4_unsupported.item.error_code")
-        unsupported_strings = ctypes.string_at(unsupported_v4.string_data, unsupported_v4.string_data_len)
-        unsupported_message = native_string(unsupported_strings, unsupported_v4.items[0].error_message_offset, unsupported_v4.items[0].error_message_len)
-        assert_true(unsupported_message, "read_objects_into_v4_unsupported.error_message")
+        assert_eq(unsupported_size_rc, 7, "read_objects_size_v1_unsupported.rc")
+        assert_eq(unsupported_size_v1.status, 7, "read_objects_size_v1_unsupported.status")
+        assert_eq(unsupported_size_v1.error_code, 7, "read_objects_size_v1_unsupported.error_code")
+        assert_eq(unsupported_size_v1.failed_count, 1, "read_objects_size_v1_unsupported.failed_count")
+        assert_eq(unsupported_into_rc, 7, "read_objects_into_v1_unsupported.rc")
+        assert_eq(unsupported_v1.status, 7, "read_objects_into_v1_unsupported.status")
+        assert_eq(unsupported_v1.error_code, 7, "read_objects_into_v1_unsupported.error_code")
+        assert_eq(unsupported_v1.items[0].status, 7, "read_objects_into_v1_unsupported.item.status")
+        assert_eq(unsupported_v1.items[0].error_code, 7, "read_objects_into_v1_unsupported.item.error_code")
+        unsupported_strings = ctypes.string_at(unsupported_v1.string_data, unsupported_v1.string_data_len)
+        unsupported_message = native_string(unsupported_strings, unsupported_v1.items[0].error_message_offset, unsupported_v1.items[0].error_message_len)
+        assert_true(unsupported_message, "read_objects_into_v1_unsupported.error_message")
 
-        rc, texture_table, texture_assets = native.list_objects_v2(
+        size_rc, _texture_size, rc, texture_table, texture_assets, _ = native.list_objects_v1(
             opened_context,
             offset=0,
             limit=64,
             asset_types_csv="Texture2D",
         )
-        assert_eq(rc, 0, "list_v2_texture.rc")
-        assert_eq(texture_table.status, 0, "list_v2_texture.status")
+        assert_eq(rc, 0, "list_v1_texture.rc")
+        assert_eq(texture_table.status, 0, "list_v1_texture.status")
         texture_png = None
         for texture_asset in texture_assets:
-            rc, candidate_png = native.read_objects_v3(
+            rc, candidate_png = native.read_objects_handle_v1(
                 opened_context,
                 [{"path_id": texture_asset["path_id"], "kind": "image", "image_format": "raw_rgba"}],
             )
-            assert_eq(rc, 0, "read_objects_v3_texture_png.rc")
-            assert_eq(candidate_png.status, 0, "read_objects_v3_texture_png.status")
-            assert_eq(candidate_png.error_code, 0, "read_objects_v3_texture_png.error_code")
-            assert_eq(candidate_png.returned_count, 1, "read_objects_v3_texture_png.returned_count")
-            assert_eq(candidate_png.failed_count, 0, "read_objects_v3_texture_png.failed_count")
+            assert_eq(rc, 0, "read_objects_handle_v1_texture_png.rc")
+            assert_eq(candidate_png.status, 0, "read_objects_handle_v1_texture_png.status")
+            assert_eq(candidate_png.error_code, 0, "read_objects_handle_v1_texture_png.error_code")
+            assert_eq(candidate_png.returned_count, 1, "read_objects_handle_v1_texture_png.returned_count")
+            assert_eq(candidate_png.failed_count, 0, "read_objects_handle_v1_texture_png.failed_count")
             if candidate_png.payload_len > 8:
                 texture_png = candidate_png
                 break
             if candidate_png.result_handle:
-                assert_eq(native.lib.haruki_assetstudio_result_free(candidate_png.result_handle), 0, "read_objects_v3_texture_png.empty_free")
+                assert_eq(native.lib.haruki_assetstudio_result_free(candidate_png.result_handle), 0, "read_objects_handle_v1_texture_png.empty_free")
         if texture_assets:
-            assert_true(texture_png is not None, "read_objects_v3_texture_png.non_empty_candidate")
+            assert_true(texture_png is not None, "read_objects_handle_v1_texture_png.non_empty_candidate")
             png_header = ctypes.string_at(texture_png.payload, 8)
-            assert_eq(png_header, b"\x89PNG\r\n\x1a\n", "read_objects_v3_texture_png.header")
-            assert_true(texture_png.result_handle > 0, "read_objects_v3_texture_png.result_handle")
-            assert_eq(native.lib.haruki_assetstudio_result_free(texture_png.result_handle), 0, "read_objects_v3_texture_png.free")
+            assert_eq(png_header, b"\x89PNG\r\n\x1a\n", "read_objects_handle_v1_texture_png.header")
+            assert_true(texture_png.result_handle > 0, "read_objects_handle_v1_texture_png.result_handle")
+            assert_eq(native.lib.haruki_assetstudio_result_free(texture_png.result_handle), 0, "read_objects_handle_v1_texture_png.free")
 
-        rc, close_owned_read_v3 = native.read_objects_v3(
+        rc, close_owned_read_v1 = native.read_objects_handle_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
-        assert_eq(rc, 0, "read_objects_v3_close_owned.rc")
-        assert_true(close_owned_read_v3.result_handle > 0, "read_objects_v3_close_owned.result_handle")
+        assert_eq(rc, 0, "read_objects_handle_v1_close_owned.rc")
+        assert_true(close_owned_read_v1.result_handle > 0, "read_objects_handle_v1_close_owned.result_handle")
 
-        rc, missing_read, missing_items, missing_payload = native.read_objects_direct_retry_v7(
+        rc, missing_read, missing_items, missing_payload = native.read_objects_direct_retry_v1(
             opened_context,
             [{"path_id": -9223372036854775808, "kind": "auto", "image_format": "raw_rgba"}],
             0,
@@ -1874,7 +1853,7 @@ def main():
         assert_eq(missing_read.error_code, 6, "read_missing.error_code")
         assert_eq(missing_payload, None, "read_missing.payload")
 
-        rc, unsupported_response, unsupported_items, unsupported_payload = native.read_objects_direct_retry_v7(
+        rc, unsupported_response, unsupported_items, unsupported_payload = native.read_objects_direct_retry_v1(
             opened_context,
             [{"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "raw_rgba"}],
             0,
@@ -1887,42 +1866,42 @@ def main():
         assert_eq(unsupported_payload, None, "read_unsupported_batch.payload")
 
         closed_context = opened_context
-        rc, closed = native.close_v2(closed_context)
+        rc, closed = native.close_v1(closed_context)
         opened_context = None
-        assert_eq(rc, 0, "close_v2.rc")
-        assert_eq(closed.status, 0, "close_v2.status")
-        assert_eq(closed.error_code, 0, "close_v2.error_code")
-        assert_eq(closed.struct_size, ctypes.sizeof(NativeContextCloseResponse), "close_v2.struct_size")
+        assert_eq(rc, 0, "close_v1.rc")
+        assert_eq(closed.status, 0, "close_v1.status")
+        assert_eq(closed.error_code, 0, "close_v1.error_code")
+        assert_eq(closed.struct_size, ctypes.sizeof(NativeContextCloseResponse), "close_v1.struct_size")
         assert_eq(
-            native.lib.haruki_assetstudio_result_free(close_owned_read_v3.result_handle),
+            native.lib.haruki_assetstudio_result_free(close_owned_read_v1.result_handle),
             4,
-            "read_objects_v3_close_owned.free_after_close",
+            "read_objects_handle_v1_close_owned.free_after_close",
         )
 
-        rc, close_again = native.close_v2(closed_context)
-        assert_eq(rc, 4, "close_again_v2.rc")
-        assert_eq(close_again.status, 4, "close_again_v2.status")
-        assert_eq(close_again.error_code, 4, "close_again_v2.error_code")
+        rc, close_again = native.close_v1(closed_context)
+        assert_eq(rc, 4, "close_again_v1.rc")
+        assert_eq(close_again.status, 4, "close_again_v1.status")
+        assert_eq(close_again.error_code, 4, "close_again_v1.error_code")
 
         print(json.dumps({
             "ok": True,
             "core_api_version": f"{caps.core_api_version_major}.{caps.core_api_version_minor}",
             "legacy_static_engine": bool(limits.legacy_static_engine),
             "native_console_capture": bool(caps.native_console_capture),
-            "object_index_count": opened_v2.object_index_count,
+            "object_index_count": opened_v1.object_index_count,
             "listed": len(typed_assets),
-            "read_entries": read_v4.returned_count,
+            "read_entries": read_v1.returned_count,
             "read_filter": read_filter,
         }, separators=(",", ":")))
     finally:
         if opened_context2:
             try:
-                native.close_v2(opened_context2)
+                native.close_v1(opened_context2)
             except Exception:
                 pass
         if opened_context:
             try:
-                native.close_v2(opened_context)
+                native.close_v1(opened_context)
             except Exception:
                 pass
 
