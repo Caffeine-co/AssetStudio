@@ -1,5 +1,6 @@
 use haruki_assetstudio::{
-    AssetStudioLibrary, ObjectLookupRequestOptions, ObjectReadByIndexRequest, ObjectReadByPathIdRequest,
+    AssetStudioLibrary, ObjectLookupRequestOptions, ObjectReadByIndexRequest,
+    ObjectReadByPathIdRequest,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -10,8 +11,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let library = AssetStudioLibrary::load(library_path)?;
     let capabilities = library.capabilities()?;
     println!(
-        "native streaming source kinds: {}",
-        capabilities.native_streaming_payload_kinds.join(",")
+        "core api {}.{}, context ABI {}, object table ABI {}",
+        capabilities.core_api_version_major,
+        capabilities.core_api_version_minor,
+        capabilities.context_abi_version,
+        capabilities.object_table_abi_version
     );
     let context = library.open(&input_path, None, &[], false)?;
     let objects = context.list_objects(0, 32, &[])?;
@@ -27,13 +31,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let read_by_path = context.read_by_path_id_retry(&[ObjectReadByPathIdRequest {
             path_id: first.path_id,
             kind: "raw",
-            image_format: "bmp",
+            image_format: "raw_rgba",
         }])?;
         println!("path-id read {} byte(s)", read_by_path.payload.len());
         let read = context.read_by_index_retry(&[ObjectReadByIndexRequest {
             object_index: first.index,
             kind: "raw",
-            image_format: "bmp",
+            image_format: "raw_rgba",
         }])?;
         let first_item = read.items.first();
         println!(

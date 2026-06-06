@@ -1184,36 +1184,7 @@ namespace AssetStudioCore
 
         private static AssetStudioObjectStreamPayload ReadTextureArrayPayloadInto(Texture2DArray textureArray, AssetStudioObjectReadOptions options, Stream destination)
         {
-            var imageFormat = ParseImageFormat(options.ImageFormat);
-            var formatName = imageFormat.ToString().ToLowerInvariant();
-            if (imageFormat == ImageFormat.Bmp)
-            {
-                var textures = GetTextureArrayLayers(textureArray);
-                var entries = new List<(int Layer, string Name, long PayloadLen)>();
-                for (var layer = 0; layer < textures.Count; layer++)
-                {
-                    var counter = new CountingStream();
-                    if (!textures[layer].WriteBmpToStream(counter, flip: true))
-                    {
-                        continue;
-                    }
-                    entries.Add((layer, $"layer_{layer:D4}.{formatName}", counter.BytesWritten));
-                }
-
-                var bmpPayloadLen = WriteAndMeasure(destination, () =>
-                {
-                    WritePayloadBundleHeader(destination, entries.Select(entry => (entry.Name, entry.PayloadLen)).ToArray());
-                    foreach (var entry in entries)
-                    {
-                        textures[entry.Layer].WriteBmpToStream(destination, flip: true);
-                    }
-                });
-                return new AssetStudioObjectStreamPayload(
-                    bmpPayloadLen,
-                    $"image_array_bundle_{formatName}",
-                    "",
-                    AssetStudioPayloadStreamingTier.GeneratedStreaming);
-            }
+            EnsureRawRgbaImageFormat(options.ImageFormat);
 
             var payloadLen = ImageSharpNativeAotGuard.Run(() =>
             {
@@ -1227,8 +1198,8 @@ namespace AssetStudioCore
                         continue;
                     }
                     var counter = new CountingStream();
-                    image.WriteToStream(counter, imageFormat);
-                    entries.Add((layer, $"layer_{layer:D4}.{formatName}", counter.BytesWritten));
+                    image.WriteRgbaIrToStream(counter);
+                    entries.Add((layer, $"layer_{layer:D4}.rgba", counter.BytesWritten));
                 }
 
                 return WriteAndMeasure(destination, () =>
@@ -1241,13 +1212,13 @@ namespace AssetStudioCore
                         {
                             continue;
                         }
-                        image.WriteToStream(destination, imageFormat);
+                        image.WriteRgbaIrToStream(destination);
                     }
                 });
             });
             return new AssetStudioObjectStreamPayload(
                 payloadLen,
-                $"image_array_bundle_{formatName}",
+                "image_array_bundle_raw_rgba",
                 "",
                 AssetStudioPayloadStreamingTier.GeneratedStreaming);
         }
@@ -1269,17 +1240,7 @@ namespace AssetStudioCore
 
         private static AssetStudioObjectStreamPayload ReadTexturePayloadInto(Texture2D texture, AssetStudioObjectReadOptions options, Stream destination)
         {
-            var imageFormat = ParseImageFormat(options.ImageFormat);
-            if (imageFormat == ImageFormat.Bmp)
-            {
-                var bmpPayloadLen = WriteAndMeasure(destination, () => texture.WriteBmpToStream(destination, flip: true));
-                return new AssetStudioObjectStreamPayload(
-                    bmpPayloadLen,
-                    "image_bmp",
-                    ".bmp",
-                    AssetStudioPayloadStreamingTier.GeneratedStreaming);
-            }
-
+            EnsureRawRgbaImageFormat(options.ImageFormat);
             var payloadLen = ImageSharpNativeAotGuard.Run(() =>
             {
                 using var image = texture.ConvertToImage(flip: true);
@@ -1287,12 +1248,12 @@ namespace AssetStudioCore
                 {
                     return 0L;
                 }
-                return WriteAndMeasure(destination, () => image.WriteToStream(destination, imageFormat));
+                return WriteAndMeasure(destination, () => image.WriteRgbaIrToStream(destination));
             });
             return new AssetStudioObjectStreamPayload(
                 payloadLen,
-                $"image_{imageFormat.ToString().ToLowerInvariant()}",
-                "." + imageFormat.ToString().ToLowerInvariant(),
+                "image_raw_rgba",
+                ".rgba",
                 AssetStudioPayloadStreamingTier.GeneratedStreaming);
         }
 
@@ -1304,7 +1265,7 @@ namespace AssetStudioCore
 
         private static AssetStudioObjectStreamPayload ReadSpritePayloadInto(Sprite sprite, AssetStudioObjectReadOptions options, Stream destination)
         {
-            var imageFormat = ParseImageFormat(options.ImageFormat);
+            EnsureRawRgbaImageFormat(options.ImageFormat);
             var payloadLen = ImageSharpNativeAotGuard.Run(() =>
             {
                 using var image = sprite.GetImage(SpriteMaskMode.On);
@@ -1312,12 +1273,12 @@ namespace AssetStudioCore
                 {
                     return 0L;
                 }
-                return WriteAndMeasure(destination, () => image.WriteToStream(destination, imageFormat));
+                return WriteAndMeasure(destination, () => image.WriteRgbaIrToStream(destination));
             });
             return new AssetStudioObjectStreamPayload(
                 payloadLen,
-                $"image_{imageFormat.ToString().ToLowerInvariant()}",
-                "." + imageFormat.ToString().ToLowerInvariant(),
+                "image_raw_rgba",
+                ".rgba",
                 AssetStudioPayloadStreamingTier.GeneratedStreaming);
         }
 
@@ -1596,14 +1557,17 @@ namespace AssetStudioCore
             writer.Flush();
         }
 
-        private static ImageFormat ParseImageFormat(string? imageFormat)
+        private static void EnsureRawRgbaImageFormat(string? imageFormat)
         {
-            return imageFormat?.Trim().ToLowerInvariant() switch
+            switch (imageFormat?.Trim().ToLowerInvariant())
             {
-                "png" => ImageFormat.Png,
-                "bmp" or null or "" => ImageFormat.Bmp,
-                _ => throw new ArgumentException($"unsupported image_format `{imageFormat}`"),
-            };
+                case null:
+                case "":
+                case "raw_rgba":
+                    return;
+                default:
+                    throw new ArgumentException($"unsupported image_format `{imageFormat}`; AssetStudioFFI image reads only support raw_rgba");
+            }
         }
 
         private static string PhaseName(string? value)

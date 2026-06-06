@@ -1,9 +1,7 @@
 use libloading::Library;
-use serde::Deserialize;
-use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::mem::size_of;
-use std::os::raw::{c_char, c_int, c_longlong, c_uchar};
+use std::os::raw::{c_int, c_longlong, c_uchar};
 use std::path::Path;
 use std::ptr;
 use std::sync::Arc;
@@ -14,8 +12,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("native library error: {0}")]
     Library(#[from] libloading::Error),
-    #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
     #[error("nul byte in string: {0}")]
     Nul(#[from] std::ffi::NulError),
     #[error("ABI layout mismatch for {name}: native={native}, rust={rust}")]
@@ -24,12 +20,18 @@ pub enum Error {
         native: usize,
         rust: usize,
     },
+    #[error("ABI version mismatch for {name}: native={native}, rust={rust}")]
+    VersionMismatch {
+        name: &'static str,
+        native: i32,
+        rust: i32,
+    },
     #[error("native status {status}: {detail}")]
     Native { status: i32, detail: String },
 }
 
-type JsonFn = unsafe extern "C" fn(*mut *mut c_char) -> i32;
-type FreeStringFn = unsafe extern "C" fn(*mut c_char);
+type CapabilitiesFn = unsafe extern "C" fn(*mut CapabilitiesResponse) -> i32;
+type AbiLayoutFn = unsafe extern "C" fn(*mut AbiLayoutResponse) -> i32;
 type FreeBufferFn = unsafe extern "C" fn(*mut c_uchar);
 type ResultFreeFn = unsafe extern "C" fn(c_longlong) -> i32;
 type OpenFn = unsafe extern "C" fn(*const ContextOpenRequest, *mut ContextOpenResponse) -> i32;
@@ -38,10 +40,41 @@ type ListSizeFn = unsafe extern "C" fn(*const ObjectListRequest, *mut ObjectTabl
 type ListIntoFn = unsafe extern "C" fn(*const ObjectListIntoRequest, *mut ObjectTable) -> i32;
 type LookupSizeFn = unsafe extern "C" fn(*const ObjectLookupRequest, *mut ObjectTable) -> i32;
 type LookupIntoFn = unsafe extern "C" fn(*const ObjectLookupIntoRequest, *mut ObjectTable) -> i32;
-type ReadByPathRetryFn =
-    unsafe extern "C" fn(*const ObjectReadBatchIntoRequest, *mut ObjectReadBatchRetryResponse) -> i32;
-type ReadByIndexRetryFn =
-    unsafe extern "C" fn(*const ObjectReadBatchByIndexIntoRequest, *mut ObjectReadBatchRetryResponse) -> i32;
+type ReadByPathRetryFn = unsafe extern "C" fn(
+    *const ObjectReadBatchIntoRequest,
+    *mut ObjectReadBatchRetryResponse,
+) -> i32;
+type ReadByIndexRetryFn = unsafe extern "C" fn(
+    *const ObjectReadBatchByIndexIntoRequest,
+    *mut ObjectReadBatchRetryResponse,
+) -> i32;
+
+const FFI_ABI_VERSION: c_int = 1;
+const FFI_SCHEMA_VERSION: c_int = 2;
+const FFI_LAYOUT_VERSION: c_int = 2;
+const FFI_CONTEXT_ABI_VERSION: c_int = 1;
+const FFI_OBJECT_TABLE_ABI_VERSION: c_int = 3;
+const FFI_OBJECT_TABLE_INTO_ABI_VERSION: c_int = 3;
+const FFI_OBJECT_READ_BATCH_ABI_VERSION: c_int = 1;
+const FFI_OBJECT_READ_BATCH_INTO_ABI_VERSION: c_int = 1;
+const FFI_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION: c_int = 1;
+
+const SYMBOL_CAPABILITIES: &[u8] = b"haruki_assetstudio_capabilities_v2";
+const SYMBOL_ABI_LAYOUT: &[u8] = b"haruki_assetstudio_abi_layout_v2";
+const SYMBOL_FREE_BUFFER: &[u8] = b"haruki_assetstudio_free_buffer";
+const SYMBOL_RESULT_FREE: &[u8] = b"haruki_assetstudio_result_free";
+const SYMBOL_CONTEXT_OPEN: &[u8] = b"haruki_assetstudio_context_open_v2";
+const SYMBOL_CONTEXT_CLOSE: &[u8] = b"haruki_assetstudio_context_close_v2";
+const SYMBOL_CONTEXT_LIST_OBJECTS_SIZE: &[u8] = b"haruki_assetstudio_context_list_objects_size_v3";
+const SYMBOL_CONTEXT_LIST_OBJECTS_INTO: &[u8] = b"haruki_assetstudio_context_list_objects_into_v3";
+const SYMBOL_CONTEXT_LOOKUP_OBJECTS_SIZE: &[u8] =
+    b"haruki_assetstudio_context_lookup_objects_size_v2";
+const SYMBOL_CONTEXT_LOOKUP_OBJECTS_INTO: &[u8] =
+    b"haruki_assetstudio_context_lookup_objects_into_v2";
+const SYMBOL_CONTEXT_READ_OBJECTS_DIRECT_RETRY: &[u8] =
+    b"haruki_assetstudio_context_read_objects_direct_retry_v7";
+const SYMBOL_CONTEXT_READ_OBJECTS_BY_INDEX_DIRECT_RETRY: &[u8] =
+    b"haruki_assetstudio_context_read_objects_by_index_direct_retry_v7";
 
 pub struct AssetStudioLibrary {
     inner: Arc<Native>,
@@ -49,9 +82,8 @@ pub struct AssetStudioLibrary {
 
 struct Native {
     _library: Library,
-    capabilities: JsonFn,
-    abi_layout: JsonFn,
-    free_string: FreeStringFn,
+    capabilities: CapabilitiesFn,
+    abi_layout: AbiLayoutFn,
     free_buffer: FreeBufferFn,
     result_free: ResultFreeFn,
     open: OpenFn,
@@ -68,26 +100,24 @@ impl AssetStudioLibrary {
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         unsafe {
             let library = Library::new(path.as_ref())?;
-            let capabilities = *library.get::<JsonFn>(b"haruki_assetstudio_capabilities")?;
-            let abi_layout = *library.get::<JsonFn>(b"haruki_assetstudio_abi_layout")?;
-            let free_string = *library.get::<FreeStringFn>(b"haruki_assetstudio_free_string")?;
-            let free_buffer = *library.get::<FreeBufferFn>(b"haruki_assetstudio_free_buffer")?;
-            let result_free = *library.get::<ResultFreeFn>(b"haruki_assetstudio_result_free")?;
-            let open = *library.get::<OpenFn>(b"haruki_assetstudio_context_open_v2")?;
-            let close = *library.get::<CloseFn>(b"haruki_assetstudio_context_close_v2")?;
-            let list_size = *library.get::<ListSizeFn>(b"haruki_assetstudio_context_list_objects_size_v3")?;
-            let list_into = *library.get::<ListIntoFn>(b"haruki_assetstudio_context_list_objects_into_v3")?;
-            let lookup_size = *library.get::<LookupSizeFn>(b"haruki_assetstudio_context_lookup_objects_size_v2")?;
-            let lookup_into = *library.get::<LookupIntoFn>(b"haruki_assetstudio_context_lookup_objects_into_v2")?;
+            let capabilities = *library.get::<CapabilitiesFn>(SYMBOL_CAPABILITIES)?;
+            let abi_layout = *library.get::<AbiLayoutFn>(SYMBOL_ABI_LAYOUT)?;
+            let free_buffer = *library.get::<FreeBufferFn>(SYMBOL_FREE_BUFFER)?;
+            let result_free = *library.get::<ResultFreeFn>(SYMBOL_RESULT_FREE)?;
+            let open = *library.get::<OpenFn>(SYMBOL_CONTEXT_OPEN)?;
+            let close = *library.get::<CloseFn>(SYMBOL_CONTEXT_CLOSE)?;
+            let list_size = *library.get::<ListSizeFn>(SYMBOL_CONTEXT_LIST_OBJECTS_SIZE)?;
+            let list_into = *library.get::<ListIntoFn>(SYMBOL_CONTEXT_LIST_OBJECTS_INTO)?;
+            let lookup_size = *library.get::<LookupSizeFn>(SYMBOL_CONTEXT_LOOKUP_OBJECTS_SIZE)?;
+            let lookup_into = *library.get::<LookupIntoFn>(SYMBOL_CONTEXT_LOOKUP_OBJECTS_INTO)?;
             let read_by_path_retry =
-                *library.get::<ReadByPathRetryFn>(b"haruki_assetstudio_context_read_objects_direct_retry_v7")?;
+                *library.get::<ReadByPathRetryFn>(SYMBOL_CONTEXT_READ_OBJECTS_DIRECT_RETRY)?;
             let read_by_index_retry = *library
-                .get::<ReadByIndexRetryFn>(b"haruki_assetstudio_context_read_objects_by_index_direct_retry_v7")?;
+                .get::<ReadByIndexRetryFn>(SYMBOL_CONTEXT_READ_OBJECTS_BY_INDEX_DIRECT_RETRY)?;
             let native = Arc::new(Native {
                 _library: library,
                 capabilities,
                 abi_layout,
-                free_string,
                 free_buffer,
                 result_free,
                 open,
@@ -121,7 +151,9 @@ impl AssetStudioLibrary {
             unity_version_utf8: unity_version
                 .as_ref()
                 .map_or(ptr::null(), |value| value.as_ptr() as *const c_uchar),
-            unity_version_utf8_len: unity_version.as_ref().map_or(0, |value| value.as_bytes().len() as c_int),
+            unity_version_utf8_len: unity_version
+                .as_ref()
+                .map_or(0, |value| value.as_bytes().len() as c_int),
             asset_types_csv_utf8: asset_types_csv.as_ptr() as *const c_uchar,
             asset_types_csv_utf8_len: asset_types_csv.as_bytes().len() as c_int,
             output_dir_utf8: ptr::null(),
@@ -151,22 +183,101 @@ impl AssetStudioLibrary {
 
 impl Native {
     fn capabilities(&self) -> Result<Capabilities> {
-        let json = unsafe { call_json(self.capabilities, self.free_string)? };
-        Ok(serde_json::from_str(&json)?)
+        let mut response = CapabilitiesResponse::default();
+        let status = unsafe { (self.capabilities)(&mut response) };
+        if status != 0 || response.status != 0 {
+            return Err(native_error(status, response.status, response.error_code));
+        }
+        if response.struct_size as usize != size_of::<CapabilitiesResponse>() {
+            return Err(Error::LayoutMismatch {
+                name: "haruki_assetstudio_capabilities_response",
+                native: response.struct_size as usize,
+                rust: size_of::<CapabilitiesResponse>(),
+            });
+        }
+        check_version("capabilities_v2 abi", response.abi_version, FFI_ABI_VERSION)?;
+        check_version(
+            "capabilities_v2 schema",
+            response.schema_version,
+            FFI_SCHEMA_VERSION,
+        )?;
+        check_version(
+            "context",
+            response.context_abi_version,
+            FFI_CONTEXT_ABI_VERSION,
+        )?;
+        check_version(
+            "object_table",
+            response.object_table_abi_version,
+            FFI_OBJECT_TABLE_ABI_VERSION,
+        )?;
+        check_version(
+            "object_table_into",
+            response.object_table_into_abi_version,
+            FFI_OBJECT_TABLE_INTO_ABI_VERSION,
+        )?;
+        check_version(
+            "object_read_batch",
+            response.object_read_batch_abi_version,
+            FFI_OBJECT_READ_BATCH_ABI_VERSION,
+        )?;
+        check_version(
+            "object_read_batch_into",
+            response.object_read_batch_into_abi_version,
+            FFI_OBJECT_READ_BATCH_INTO_ABI_VERSION,
+        )?;
+        check_version(
+            "object_read_batch_direct_retry",
+            response.object_read_batch_direct_retry_abi_version,
+            FFI_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION,
+        )?;
+        Ok(Capabilities::from(response))
     }
 
     fn verify_layout(&self) -> Result<()> {
-        let json = unsafe { call_json(self.abi_layout, self.free_string)? };
-        let layout: AbiLayout = serde_json::from_str(&json)?;
-        check_size::<ContextOpenRequest>(&layout, "haruki_assetstudio_context_open_request")?;
-        check_size::<ContextOpenResponse>(&layout, "haruki_assetstudio_context_open_response")?;
-        check_size::<ObjectTable>(&layout, "haruki_assetstudio_object_table")?;
-        check_size::<AssetObject>(&layout, "haruki_assetstudio_asset_object")?;
-        check_size::<ObjectLookupRequest>(&layout, "haruki_assetstudio_object_lookup_request")?;
-        check_size::<ObjectLookupIntoRequest>(&layout, "haruki_assetstudio_object_lookup_into_request_v2")?;
-        check_size::<ObjectReadBatchIntoRequest>(&layout, "haruki_assetstudio_object_read_batch_into_request_v4")?;
-        check_size::<ObjectReadBatchByIndexIntoRequest>(&layout, "haruki_assetstudio_object_read_batch_by_index_into_request_v5")?;
-        check_size::<ObjectReadBatchRetryResponse>(&layout, "haruki_assetstudio_object_read_batch_retry_response_v7")?;
+        self.capabilities()?;
+        let mut layout = AbiLayoutResponse::default();
+        let status = unsafe { (self.abi_layout)(&mut layout) };
+        if status != 0 || layout.status != 0 {
+            return Err(native_error(status, layout.status, layout.error_code));
+        }
+        check_size::<AbiLayoutResponse>(
+            layout.struct_size,
+            "haruki_assetstudio_abi_layout_response",
+        )?;
+        check_version("abi_layout_v2 abi", layout.abi_version, FFI_ABI_VERSION)?;
+        check_version(
+            "abi_layout_v2 schema",
+            layout.schema_version,
+            FFI_SCHEMA_VERSION,
+        )?;
+        check_version(
+            "abi_layout_v2 layout",
+            layout.layout_version,
+            FFI_LAYOUT_VERSION,
+        )?;
+        check_size::<CapabilitiesResponse>(
+            layout.capabilities_response,
+            "haruki_assetstudio_capabilities_response",
+        )?;
+        check_size::<ContextOpenRequest>(
+            layout.context_open_request,
+            "haruki_assetstudio_context_open_request",
+        )?;
+        check_size::<ContextOpenResponse>(
+            layout.context_open_response,
+            "haruki_assetstudio_context_open_response",
+        )?;
+        check_size::<ObjectTable>(layout.object_table, "haruki_assetstudio_object_table")?;
+        check_size::<AssetObject>(layout.asset_object, "haruki_assetstudio_asset_object")?;
+        check_size::<ObjectReadBatchIntoRequest>(
+            layout.object_read_batch_into_request_v4,
+            "haruki_assetstudio_object_read_batch_into_request_v4",
+        )?;
+        check_size::<ObjectReadBatchRetryResponse>(
+            layout.object_read_batch_retry_response_v7,
+            "haruki_assetstudio_object_read_batch_retry_response_v7",
+        )?;
         Ok(())
     }
 }
@@ -181,7 +292,12 @@ impl Context {
         self.context_id
     }
 
-    pub fn list_objects(&self, offset: i32, limit: i32, asset_types: &[&str]) -> Result<Vec<AssetInfo>> {
+    pub fn list_objects(
+        &self,
+        offset: i32,
+        limit: i32,
+        asset_types: &[&str],
+    ) -> Result<Vec<AssetInfo>> {
         let asset_types_csv = CString::new(asset_types.join(","))?;
         let request = ObjectListRequest {
             struct_size: size_of::<ObjectListRequest>() as c_int,
@@ -196,7 +312,11 @@ impl Context {
         let mut size_response = ObjectTable::default();
         let status = unsafe { (self.native.list_size)(&request, &mut size_response) };
         if status != 0 || size_response.status != 0 {
-            return Err(native_error(status, size_response.status, size_response.error_code));
+            return Err(native_error(
+                status,
+                size_response.status,
+                size_response.error_code,
+            ));
         }
         let mut buffer = vec![0u8; size_response.buffer_len as usize];
         let into_request = ObjectListIntoRequest {
@@ -219,7 +339,10 @@ impl Context {
         Ok(read_asset_infos(&response))
     }
 
-    pub fn lookup_objects(&self, request: ObjectLookupRequestOptions<'_>) -> Result<Vec<AssetInfo>> {
+    pub fn lookup_objects(
+        &self,
+        request: ObjectLookupRequestOptions<'_>,
+    ) -> Result<Vec<AssetInfo>> {
         let query = optional_cstring(request.query)?;
         let asset_types_csv = CString::new(request.asset_types.join(","))?;
         let lookup_request = ObjectLookupRequest {
@@ -230,7 +353,9 @@ impl Context {
             query_utf8: query
                 .as_ref()
                 .map_or(ptr::null(), |value| value.as_ptr() as *const c_uchar),
-            query_utf8_len: query.as_ref().map_or(0, |value| value.as_bytes().len() as c_int),
+            query_utf8_len: query
+                .as_ref()
+                .map_or(0, |value| value.as_bytes().len() as c_int),
             asset_types_csv_utf8: asset_types_csv.as_ptr() as *const c_uchar,
             asset_types_csv_utf8_len: asset_types_csv.as_bytes().len() as c_int,
             offset: request.offset,
@@ -241,7 +366,11 @@ impl Context {
         let mut size_response = ObjectTable::default();
         let status = unsafe { (self.native.lookup_size)(&lookup_request, &mut size_response) };
         if status != 0 || size_response.status != 0 {
-            return Err(native_error(status, size_response.status, size_response.error_code));
+            return Err(native_error(
+                status,
+                size_response.status,
+                size_response.error_code,
+            ));
         }
         let mut buffer = vec![0u8; size_response.buffer_len as usize];
         let into_request = ObjectLookupIntoRequest {
@@ -268,7 +397,10 @@ impl Context {
         Ok(read_asset_infos(&response))
     }
 
-    pub fn read_by_path_id_retry(&self, requests: &[ObjectReadByPathIdRequest<'_>]) -> Result<ObjectReadResult> {
+    pub fn read_by_path_id_retry(
+        &self,
+        requests: &[ObjectReadByPathIdRequest<'_>],
+    ) -> Result<ObjectReadResult> {
         let mut kinds = Vec::with_capacity(requests.len());
         let mut formats = Vec::with_capacity(requests.len());
         let mut items = Vec::with_capacity(requests.len());
@@ -302,7 +434,10 @@ impl Context {
         self.finish_read_retry(status, response)
     }
 
-    pub fn read_by_index_retry(&self, requests: &[ObjectReadByIndexRequest<'_>]) -> Result<ObjectReadResult> {
+    pub fn read_by_index_retry(
+        &self,
+        requests: &[ObjectReadByIndexRequest<'_>],
+    ) -> Result<ObjectReadResult> {
         let mut kinds = Vec::with_capacity(requests.len());
         let mut formats = Vec::with_capacity(requests.len());
         let mut items = Vec::with_capacity(requests.len());
@@ -336,7 +471,11 @@ impl Context {
         self.finish_read_retry(status, response)
     }
 
-    fn finish_read_retry(&self, status: i32, response: ObjectReadBatchRetryResponse) -> Result<ObjectReadResult> {
+    fn finish_read_retry(
+        &self,
+        status: i32,
+        response: ObjectReadBatchRetryResponse,
+    ) -> Result<ObjectReadResult> {
         if status != 0 && status != 9 {
             if response.result_handle != 0 {
                 unsafe { (self.native.result_free)(response.result_handle) };
@@ -346,7 +485,9 @@ impl Context {
         let read_items = if response.items.is_null() || response.returned_count <= 0 {
             Vec::new()
         } else {
-            let native_items = unsafe { std::slice::from_raw_parts(response.items, response.returned_count as usize) };
+            let native_items = unsafe {
+                std::slice::from_raw_parts(response.items, response.returned_count as usize)
+            };
             native_items
                 .iter()
                 .map(|item| ObjectReadItem {
@@ -358,20 +499,30 @@ impl Context {
                     size: item.size,
                     payload_offset: item.payload_offset,
                     payload_len: item.payload_len,
-                    payload_kind: read_string(response.string_data, item.payload_kind_offset, item.payload_kind_len),
+                    payload_kind: read_string(
+                        response.string_data,
+                        item.payload_kind_offset,
+                        item.payload_kind_len,
+                    ),
                     suggested_extension: read_string(
                         response.string_data,
                         item.suggested_extension_offset,
                         item.suggested_extension_len,
                     ),
-                    error_message: read_string(response.string_data, item.error_message_offset, item.error_message_len),
+                    error_message: read_string(
+                        response.string_data,
+                        item.error_message_offset,
+                        item.error_message_len,
+                    ),
                 })
                 .collect()
         };
         let payload = if response.payload.is_null() || response.payload_len <= 0 {
             Vec::new()
         } else {
-            unsafe { std::slice::from_raw_parts(response.payload, response.payload_len as usize).to_vec() }
+            unsafe {
+                std::slice::from_raw_parts(response.payload, response.payload_len as usize).to_vec()
+            }
         };
         let handle = response.result_handle;
         if handle != 0 {
@@ -518,60 +669,130 @@ impl ObjectReadResult {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CapabilitiesResponse {
+    struct_size: c_int,
+    abi_version: c_int,
+    schema_version: c_int,
+    status: c_int,
+    error_code: c_int,
+    core_api_version_major: c_int,
+    core_api_version_minor: c_int,
+    context_abi_version: c_int,
+    object_table_abi_version: c_int,
+    object_table_into_abi_version: c_int,
+    object_lookup_abi_version: c_int,
+    object_lookup_into_abi_version: c_int,
+    object_read_abi_version: c_int,
+    object_read_batch_abi_version: c_int,
+    object_read_batch_handle_abi_version: c_int,
+    object_read_batch_into_abi_version: c_int,
+    object_read_batch_by_index_abi_version: c_int,
+    object_read_batch_direct_into_abi_version: c_int,
+    object_read_batch_direct_retry_abi_version: c_int,
+    supports_typed_object_table: c_int,
+    supports_caller_provided_object_table_buffers: c_int,
+    supports_typed_object_lookup: c_int,
+    supports_caller_provided_object_lookup_buffers: c_int,
+    supports_typed_object_read: c_int,
+    supports_typed_object_read_batch: c_int,
+    supports_result_handle: c_int,
+    supports_direct_object_read_retry: c_int,
+    supports_typed_context: c_int,
+    supports_native_dependency_resolver: c_int,
+    supports_abi_layout: c_int,
+    supports_multiple_contexts: c_int,
+    supports_concurrent_operations: c_int,
+    supports_context_lifetime_guards: c_int,
+    native_console_capture: c_int,
+    flags: c_int,
+    reserved: c_int,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct AbiLayoutResponse {
+    struct_size: c_int,
+    abi_version: c_int,
+    schema_version: c_int,
+    status: c_int,
+    error_code: c_int,
+    layout_version: c_int,
+    context_open_request: c_int,
+    context_open_response: c_int,
+    context_close_request: c_int,
+    context_close_response: c_int,
+    limits_response: c_int,
+    capabilities_response: c_int,
+    object_list_request: c_int,
+    object_list_into_request_v3: c_int,
+    object_table: c_int,
+    asset_object: c_int,
+    object_read_item_request: c_int,
+    object_read_batch_into_request_v4: c_int,
+    object_read_item_response_v4: c_int,
+    object_read_batch_retry_response_v7: c_int,
+    flags: c_int,
+    reserved: c_int,
+}
+
+#[derive(Debug, Clone)]
 pub struct Capabilities {
-    #[serde(default)]
-    pub ffi_mode: String,
-    #[serde(default)]
-    pub supports_native_streaming_payload: bool,
-    #[serde(default)]
-    pub native_streaming_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub direct_buffer_write_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub source_streaming_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub resident_buffer_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub generated_streaming_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub temp_file_intermediate_payload_kinds: Vec<String>,
-    #[serde(default)]
-    pub managed_intermediate_payload_kinds: Vec<String>,
-    #[serde(default)]
+    pub core_api_version_major: i32,
+    pub core_api_version_minor: i32,
+    pub context_abi_version: i32,
+    pub object_table_abi_version: i32,
+    pub object_table_into_abi_version: i32,
+    pub object_read_batch_direct_retry_abi_version: i32,
+    pub supports_typed_object_table: bool,
+    pub supports_caller_provided_object_table_buffers: bool,
+    pub supports_typed_object_read_batch: bool,
+    pub supports_direct_object_read_retry: bool,
     pub supports_concurrent_operations: bool,
-    #[serde(default)]
-    pub max_concurrent_operations: i32,
-    #[serde(default)]
-    pub legacy_static_engine: bool,
+    pub native_console_capture: bool,
 }
 
-#[derive(Deserialize)]
-struct AbiLayout {
-    struct_sizes: HashMap<String, usize>,
+impl From<CapabilitiesResponse> for Capabilities {
+    fn from(response: CapabilitiesResponse) -> Self {
+        Self {
+            core_api_version_major: response.core_api_version_major,
+            core_api_version_minor: response.core_api_version_minor,
+            context_abi_version: response.context_abi_version,
+            object_table_abi_version: response.object_table_abi_version,
+            object_table_into_abi_version: response.object_table_into_abi_version,
+            object_read_batch_direct_retry_abi_version: response
+                .object_read_batch_direct_retry_abi_version,
+            supports_typed_object_table: response.supports_typed_object_table != 0,
+            supports_caller_provided_object_table_buffers: response
+                .supports_caller_provided_object_table_buffers
+                != 0,
+            supports_typed_object_read_batch: response.supports_typed_object_read_batch != 0,
+            supports_direct_object_read_retry: response.supports_direct_object_read_retry != 0,
+            supports_concurrent_operations: response.supports_concurrent_operations != 0,
+            native_console_capture: response.native_console_capture != 0,
+        }
+    }
 }
 
-fn check_size<T>(layout: &AbiLayout, name: &'static str) -> Result<()> {
+fn check_size<T>(native: c_int, name: &'static str) -> Result<()> {
     let rust = size_of::<T>();
-    let native = layout.struct_sizes.get(name).copied().unwrap_or(0);
-    if native != rust {
-        return Err(Error::LayoutMismatch { name, native, rust });
+    if native < 0 || native as usize != rust {
+        return Err(Error::LayoutMismatch {
+            name,
+            native: native.max(0) as usize,
+            rust,
+        });
     }
     Ok(())
 }
 
-unsafe fn call_json(function: JsonFn, free: FreeStringFn) -> Result<String> {
-    let mut pointer: *mut c_char = ptr::null_mut();
-    let status = function(&mut pointer);
-    if status != 0 {
-        return Err(Error::Native {
-            status,
-            detail: "json function failed".to_string(),
-        });
+fn check_version(name: &'static str, native: c_int, rust: c_int) -> Result<()> {
+    if native == rust {
+        Ok(())
+    } else {
+        Err(Error::VersionMismatch { name, native, rust })
     }
-    let value = CStr::from_ptr(pointer).to_string_lossy().into_owned();
-    free(pointer);
-    Ok(value)
 }
 
 fn optional_cstring(value: Option<&str>) -> Result<Option<CString>> {
@@ -580,7 +801,11 @@ fn optional_cstring(value: Option<&str>) -> Result<Option<CString>> {
 
 fn native_error(return_status: i32, response_status: i32, error_code: i32) -> Error {
     Error::Native {
-        status: if return_status != 0 { return_status } else { response_status },
+        status: if return_status != 0 {
+            return_status
+        } else {
+            response_status
+        },
         detail: format!("response_status={response_status} error_code={error_code}"),
     }
 }
@@ -599,7 +824,8 @@ fn read_asset_infos(response: &ObjectTable) -> Vec<AssetInfo> {
     if response.objects.is_null() || response.returned_count <= 0 {
         return Vec::new();
     }
-    let objects = unsafe { std::slice::from_raw_parts(response.objects, response.returned_count as usize) };
+    let objects =
+        unsafe { std::slice::from_raw_parts(response.objects, response.returned_count as usize) };
     objects
         .iter()
         .map(|object| AssetInfo {
@@ -947,18 +1173,24 @@ mod tests {
     }
 
     #[test]
-    fn capabilities_defaults_missing_streaming_tiers() {
-        let capabilities: Capabilities = serde_json::from_str(
-            r#"{
-                "ffi_mode": "core",
-                "supports_native_streaming_payload": true,
-                "native_streaming_payload_kinds": ["raw"],
-                "legacy_static_engine": false
-            }"#,
-        )
-        .unwrap();
-        assert_eq!(capabilities.native_streaming_payload_kinds, ["raw"]);
-        assert!(capabilities.generated_streaming_payload_kinds.is_empty());
-        assert!(!capabilities.legacy_static_engine);
+    fn capabilities_from_typed_response_maps_flags() {
+        let capabilities = Capabilities::from(CapabilitiesResponse {
+            core_api_version_major: 1,
+            context_abi_version: FFI_CONTEXT_ABI_VERSION,
+            object_table_abi_version: FFI_OBJECT_TABLE_ABI_VERSION,
+            object_table_into_abi_version: FFI_OBJECT_TABLE_INTO_ABI_VERSION,
+            object_read_batch_direct_retry_abi_version:
+                FFI_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION,
+            supports_typed_object_table: 1,
+            supports_caller_provided_object_table_buffers: 1,
+            supports_typed_object_read_batch: 1,
+            supports_direct_object_read_retry: 1,
+            supports_concurrent_operations: 1,
+            ..CapabilitiesResponse::default()
+        });
+        assert_eq!(capabilities.core_api_version_major, 1);
+        assert!(capabilities.supports_typed_object_table);
+        assert!(capabilities.supports_direct_object_read_retry);
+        assert!(!capabilities.native_console_capture);
     }
 }

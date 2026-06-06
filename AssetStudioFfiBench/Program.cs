@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
 
 var options = BenchOptions.Parse(args);
 if (options == null)
@@ -69,70 +68,32 @@ return 0;
 
 static FfiRunResult RunFfi(NativeAssetStudio ffi, BenchOptions options)
 {
-    var openRequest = new Dictionary<string, object?>
-    {
-        ["input_path"] = options.InputPath,
-        ["include_assets"] = true,
-        ["output_dir"] = Path.Combine(Path.GetTempPath(), "assetstudio-ffi-bench-" + Guid.NewGuid().ToString("N")),
-    };
-    if (options.AssetTypes.Count > 0)
-    {
-        openRequest["asset_types"] = options.AssetTypes;
-    }
-    if (!string.IsNullOrWhiteSpace(options.UnityVersion))
-    {
-        openRequest["unity_version"] = options.UnityVersion;
-    }
-
-    var open = ffi.CallJson("context_open", ffi.ContextOpen, openRequest);
-    using var openDoc = JsonDocument.Parse(open.ResponseJson);
-    EnsureSuccess(openDoc.RootElement);
-    var contextId = openDoc.RootElement.GetProperty("context_id").GetInt64();
-    var assets = ReadAssets(openDoc.RootElement);
+    var outputDir = Path.Combine(Path.GetTempPath(), "assetstudio-ffi-bench-" + Guid.NewGuid().ToString("N"));
+    var assetTypesCsv = options.AssetTypes.Count > 0 ? string.Join(",", options.AssetTypes) : null;
+    var open = ffi.Open(options.InputPath, options.UnityVersion, assetTypesCsv, outputDir);
+    var contextId = open.ContextId;
 
     Sample? list = null;
     Sample? readBatch = null;
     Sample closeSample;
+    IReadOnlyList<AssetRef> assets = Array.Empty<AssetRef>();
     try
     {
-        list = ffi.CallJson("context_list_objects", ffi.ContextListObjects, new Dictionary<string, object?>
-        {
-            ["context_id"] = contextId,
-            ["offset"] = 0,
-            ["limit"] = options.ReadCount > 0 ? options.ReadCount : Math.Min(assets.Count, 100),
-        }).Sample;
+        var defaultListLimit = open.ExportableAssetCount > 0 ? Math.Min(open.ExportableAssetCount, 100) : 100;
+        var listResult = ffi.ListObjects(contextId, 0, options.ReadCount > 0 ? options.ReadCount : defaultListLimit, assetTypesCsv);
+        assets = listResult.Assets;
+        list = listResult.Sample;
 
         if (options.ReadCount > 0 && assets.Count > 0)
         {
-            var selected = assets.Take(options.ReadCount)
-                .Select(asset => new Dictionary<string, object?>
-                {
-                    ["path_id"] = asset.PathId,
-                    ["kind"] = options.Kind,
-                    ["image_format"] = options.ImageFormat,
-                })
-                .ToArray();
-
-            var batchRequest = new Dictionary<string, object?>
-            {
-                ["context_id"] = contextId,
-                ["objects"] = selected,
-            };
-            var batch = ffi.CallReadObjects(batchRequest);
-            using var batchDoc = JsonDocument.Parse(batch.ResponseJson);
-            EnsureSuccess(batchDoc.RootElement);
-            readBatch = batch.Sample with { PayloadBytes = batch.PayloadLength };
+            readBatch = ffi.ReadObjects(contextId, assets.Take(options.ReadCount).Select(x => x.PathId).ToArray(), options.Kind, options.ImageFormat);
         }
     }
     finally
     {
-        var close = ffi.CallJson("context_close", ffi.ContextClose, new Dictionary<string, object?>
-        {
-            ["context_id"] = contextId,
-        });
-
-        open.Sample.AssetCount = assets.Count;
-        open.Sample.ObjectIndexCount = TryGetInt(openDoc.RootElement, "object_index_count");
+        var close = ffi.Close(contextId);
+        open.Sample.AssetCount = open.ExportableAssetCount;
+        open.Sample.ObjectIndexCount = open.ObjectIndexCount;
         close.Sample.AssetCount = assets.Count;
         closeSample = close.Sample;
     }
@@ -205,45 +166,6 @@ static ProcessStartInfo CreateCliStartInfo(string cliPath, IReadOnlyList<string>
     return startInfo;
 }
 
-static List<AssetRef> ReadAssets(JsonElement root)
-{
-    var assets = new List<AssetRef>();
-    if (!root.TryGetProperty("assets", out var assetsElement) || assetsElement.ValueKind != JsonValueKind.Array)
-    {
-        return assets;
-    }
-
-    foreach (var asset in assetsElement.EnumerateArray())
-    {
-        if (asset.TryGetProperty("path_id", out var pathId))
-        {
-            assets.Add(new AssetRef(pathId.GetInt64()));
-        }
-    }
-
-    return assets;
-}
-
-static void EnsureSuccess(JsonElement root)
-{
-    if (root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.True)
-    {
-        return;
-    }
-
-    var error = root.TryGetProperty("error", out var errorElement)
-        ? errorElement.GetString()
-        : root.GetRawText();
-    throw new InvalidOperationException(error);
-}
-
-static int TryGetInt(JsonElement root, string propertyName)
-{
-    return root.TryGetProperty(propertyName, out var value) && value.TryGetInt32(out var result)
-        ? result
-        : 0;
-}
-
 static void PrintFfiSummary(IReadOnlyList<FfiRunResult> runs)
 {
     PrintSampleSummary("ffi_context_open", runs.Select(x => x.Open).ToList());
@@ -283,84 +205,184 @@ static double Percentile(IReadOnlyList<double> sortedValues, double percentile)
 
 internal sealed class NativeAssetStudio
 {
-    private readonly FreeDelegate freeString;
     private readonly FreeDelegate freeBuffer;
+    private readonly ResultFreeDelegate resultFree;
+    private readonly ContextOpenDelegate contextOpen;
+    private readonly ContextListObjectsDelegate contextListObjects;
+    private readonly ContextCloseDelegate contextClose;
+    private readonly ContextReadObjectsDirectRetryDelegate contextReadObjectsDirectRetry;
 
     public NativeAssetStudio(string libraryPath)
     {
         var handle = NativeLibrary.Load(libraryPath);
-        ContextOpen = Load<NativeJsonDelegate>(handle, "haruki_assetstudio_context_open");
-        ContextListObjects = Load<NativeJsonDelegate>(handle, "haruki_assetstudio_context_list_objects");
-        ContextClose = Load<NativeJsonDelegate>(handle, "haruki_assetstudio_context_close");
-        ContextReadObjects = Load<NativeReadObjectsDelegate>(handle, "haruki_assetstudio_context_read_objects");
-        freeString = Load<FreeDelegate>(handle, "haruki_assetstudio_free_string");
+        contextOpen = Load<ContextOpenDelegate>(handle, "haruki_assetstudio_context_open_v2");
+        contextListObjects = Load<ContextListObjectsDelegate>(handle, "haruki_assetstudio_context_list_objects_v2");
+        contextClose = Load<ContextCloseDelegate>(handle, "haruki_assetstudio_context_close_v2");
+        contextReadObjectsDirectRetry = Load<ContextReadObjectsDirectRetryDelegate>(handle, "haruki_assetstudio_context_read_objects_direct_retry_v7");
         freeBuffer = Load<FreeDelegate>(handle, "haruki_assetstudio_free_buffer");
+        resultFree = Load<ResultFreeDelegate>(handle, "haruki_assetstudio_result_free");
     }
 
-    public NativeJsonDelegate ContextOpen { get; }
-
-    public NativeJsonDelegate ContextListObjects { get; }
-
-    public NativeJsonDelegate ContextClose { get; }
-
-    public NativeReadObjectsDelegate ContextReadObjects { get; }
-
-    public NativeJsonResult CallJson(string name, NativeJsonDelegate callback, object request)
+    public NativeOpenResult Open(string inputPath, string? unityVersion, string? assetTypesCsv, string outputDir)
     {
-        var requestPtr = StringToNativeUtf8(JsonSerializer.Serialize(request));
-        IntPtr responsePtr = IntPtr.Zero;
+        var inputPathUtf8 = NativeUtf8.From(inputPath);
+        var unityVersionUtf8 = NativeUtf8.From(unityVersion);
+        var assetTypesUtf8 = NativeUtf8.From(assetTypesCsv);
+        var outputDirUtf8 = NativeUtf8.From(outputDir);
+        var request = new NativeContextOpenRequest
+        {
+            StructSize = Marshal.SizeOf<NativeContextOpenRequest>(),
+            InputPathUtf8 = inputPathUtf8.Pointer,
+            InputPathUtf8Len = inputPathUtf8.Length,
+            UnityVersionUtf8 = unityVersionUtf8.Pointer,
+            UnityVersionUtf8Len = unityVersionUtf8.Length,
+            AssetTypesCsvUtf8 = assetTypesUtf8.Pointer,
+            AssetTypesCsvUtf8Len = assetTypesUtf8.Length,
+            OutputDirUtf8 = outputDirUtf8.Pointer,
+            OutputDirUtf8Len = outputDirUtf8.Length,
+            LoadAllAssets = 0,
+        };
+        var response = new NativeContextOpenResponse();
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var code = callback(requestPtr, out responsePtr);
+            var code = contextOpen(ref request, ref response);
             stopwatch.Stop();
-            var responseJson = PtrToString(responsePtr);
-            if (code != 0)
+            if (code != 0 || response.Status != 0)
             {
-                throw new InvalidOperationException($"{name} returned {code}: {responseJson}");
+                throw new InvalidOperationException($"context_open_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
             }
-            return new NativeJsonResult(responseJson, new Sample(name, stopwatch.Elapsed.TotalMilliseconds));
+            return new NativeOpenResult(
+                response.ContextId,
+                response.ExportableAssetCount,
+                response.ObjectIndexCount,
+                new Sample("context_open_v2", stopwatch.Elapsed.TotalMilliseconds));
         }
         finally
         {
-            Marshal.FreeCoTaskMem(requestPtr);
-            if (responsePtr != IntPtr.Zero)
+            inputPathUtf8.Dispose();
+            unityVersionUtf8.Dispose();
+            assetTypesUtf8.Dispose();
+            outputDirUtf8.Dispose();
+            if (response.Buffer != IntPtr.Zero)
             {
-                freeString(responsePtr);
+                freeBuffer(response.Buffer);
             }
         }
     }
 
-    public NativeReadResult CallReadObjects(object request)
+    public NativeListResult ListObjects(long contextId, int offset, int limit, string? assetTypesCsv)
     {
-        var requestPtr = StringToNativeUtf8(JsonSerializer.Serialize(request));
-        IntPtr responsePtr = IntPtr.Zero;
-        IntPtr payloadPtr = IntPtr.Zero;
-        long payloadLength = 0;
+        var assetTypesUtf8 = NativeUtf8.From(assetTypesCsv);
+        var request = new NativeObjectListRequest
+        {
+            StructSize = Marshal.SizeOf<NativeObjectListRequest>(),
+            ContextId = contextId,
+            Offset = offset,
+            Limit = limit,
+            AssetTypesCsvUtf8 = assetTypesUtf8.Pointer,
+            AssetTypesCsvUtf8Len = assetTypesUtf8.Length,
+        };
+        var response = new NativeObjectTable();
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var code = ContextReadObjects(requestPtr, out responsePtr, out payloadPtr, out payloadLength);
+            var code = contextListObjects(ref request, ref response);
             stopwatch.Stop();
-            var responseJson = PtrToString(responsePtr);
-            if (code != 0)
+            if (code != 0 || response.Status != 0)
             {
-                throw new InvalidOperationException($"context_read_objects returned {code}: {responseJson}");
+                throw new InvalidOperationException($"context_list_objects_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
             }
-            return new NativeReadResult(responseJson, new Sample("context_read_objects", stopwatch.Elapsed.TotalMilliseconds), payloadLength);
+            var assets = new List<AssetRef>(Math.Max(0, response.ReturnedCount));
+            for (var i = 0; i < response.ReturnedCount; i++)
+            {
+                var asset = Marshal.PtrToStructure<NativeAssetObject>(IntPtr.Add(response.Objects, i * Marshal.SizeOf<NativeAssetObject>()));
+                assets.Add(new AssetRef(asset.PathId));
+            }
+            return new NativeListResult(assets, new Sample("context_list_objects_v2", stopwatch.Elapsed.TotalMilliseconds)
+            {
+                AssetCount = response.TotalCount,
+            });
         }
         finally
         {
-            Marshal.FreeCoTaskMem(requestPtr);
-            if (responsePtr != IntPtr.Zero)
+            assetTypesUtf8.Dispose();
+            if (response.Buffer != IntPtr.Zero)
             {
-                freeString(responsePtr);
-            }
-            if (payloadPtr != IntPtr.Zero)
-            {
-                freeBuffer(payloadPtr);
+                freeBuffer(response.Buffer);
             }
         }
+    }
+
+    public Sample ReadObjects(long contextId, IReadOnlyList<long> pathIds, string kind, string imageFormat)
+    {
+        var kindUtf8 = NativeUtf8.From(kind);
+        var imageFormatUtf8 = NativeUtf8.From(imageFormat);
+        var itemSize = Marshal.SizeOf<NativeObjectReadItemRequest>();
+        var itemsPtr = Marshal.AllocCoTaskMem(itemSize * pathIds.Count);
+        var response = new NativeObjectReadBatchRetryResponseV7();
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            for (var i = 0; i < pathIds.Count; i++)
+            {
+                var item = new NativeObjectReadItemRequest
+                {
+                    PathId = pathIds[i],
+                    KindUtf8 = kindUtf8.Pointer,
+                    KindUtf8Len = kindUtf8.Length,
+                    ImageFormatUtf8 = imageFormatUtf8.Pointer,
+                    ImageFormatUtf8Len = imageFormatUtf8.Length,
+                };
+                Marshal.StructureToPtr(item, IntPtr.Add(itemsPtr, i * itemSize), false);
+            }
+
+            var request = new NativeObjectReadBatchIntoRequestV4
+            {
+                StructSize = Marshal.SizeOf<NativeObjectReadBatchIntoRequestV4>(),
+                ContextId = contextId,
+                Items = itemsPtr,
+                Count = pathIds.Count,
+            };
+            var code = contextReadObjectsDirectRetry(ref request, ref response);
+            stopwatch.Stop();
+            if (code != 0 || (response.Status != 0 && response.Status != 9))
+            {
+                throw new InvalidOperationException($"context_read_objects_direct_retry_v7 returned rc={code} status={response.Status} error={response.ErrorCode}");
+            }
+            return new Sample("context_read_objects_direct_retry_v7", stopwatch.Elapsed.TotalMilliseconds)
+            {
+                PayloadBytes = response.PayloadLen,
+            };
+        }
+        finally
+        {
+            if (response.ResultHandle != 0)
+            {
+                resultFree(response.ResultHandle);
+            }
+            Marshal.FreeCoTaskMem(itemsPtr);
+            kindUtf8.Dispose();
+            imageFormatUtf8.Dispose();
+        }
+    }
+
+    public NativeCloseResult Close(long contextId)
+    {
+        var request = new NativeContextCloseRequest
+        {
+            StructSize = Marshal.SizeOf<NativeContextCloseRequest>(),
+            ContextId = contextId,
+        };
+        var response = new NativeContextCloseResponse();
+        var stopwatch = Stopwatch.StartNew();
+        var code = contextClose(ref request, ref response);
+        stopwatch.Stop();
+        if (code != 0 || response.Status != 0)
+        {
+            throw new InvalidOperationException($"context_close_v2 returned rc={code} status={response.Status} error={response.ErrorCode}");
+        }
+        return new NativeCloseResult(new Sample("context_close_v2", stopwatch.Elapsed.TotalMilliseconds));
     }
 
     private static T Load<T>(IntPtr handle, string name)
@@ -369,35 +391,23 @@ internal sealed class NativeAssetStudio
         return Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(handle, name));
     }
 
-    private static IntPtr StringToNativeUtf8(string value)
-    {
-        var bytes = Encoding.UTF8.GetBytes(value);
-        var pointer = Marshal.AllocCoTaskMem(bytes.Length + 1);
-        Marshal.Copy(bytes, 0, pointer, bytes.Length);
-        Marshal.WriteByte(pointer, bytes.Length, 0);
-        return pointer;
-    }
-
-    private static string PtrToString(IntPtr pointer)
-    {
-        return pointer == IntPtr.Zero
-            ? string.Empty
-            : Marshal.PtrToStringUTF8(pointer) ?? string.Empty;
-    }
-
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate int NativeJsonDelegate(IntPtr requestJson, out IntPtr responseJson);
-
+    private delegate int ContextOpenDelegate(ref NativeContextOpenRequest request, ref NativeContextOpenResponse response);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate int NativeReadObjectsDelegate(IntPtr requestJson, out IntPtr responseJson, out IntPtr payloadPtr, out long payloadLen);
-
+    private delegate int ContextListObjectsDelegate(ref NativeObjectListRequest request, ref NativeObjectTable response);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ContextCloseDelegate(ref NativeContextCloseRequest request, ref NativeContextCloseResponse response);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ContextReadObjectsDirectRetryDelegate(ref NativeObjectReadBatchIntoRequestV4 request, ref NativeObjectReadBatchRetryResponseV7 response);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeDelegate(IntPtr value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ResultFreeDelegate(long resultHandle);
 }
 
-internal sealed record NativeJsonResult(string ResponseJson, Sample Sample);
-
-internal sealed record NativeReadResult(string ResponseJson, Sample Sample, long PayloadLength);
+internal sealed record NativeOpenResult(long ContextId, int ExportableAssetCount, int ObjectIndexCount, Sample Sample);
+internal sealed record NativeListResult(IReadOnlyList<AssetRef> Assets, Sample Sample);
+internal sealed record NativeCloseResult(Sample Sample);
 
 internal sealed record FfiRunResult(Sample Open, Sample? List, Sample? ReadBatch, Sample Close)
 {
@@ -413,6 +423,221 @@ internal sealed record Sample(string Name, double ElapsedMs)
     public int ObjectIndexCount { get; set; }
 }
 
+internal readonly struct NativeUtf8 : IDisposable
+{
+    private NativeUtf8(IntPtr pointer, int length)
+    {
+        Pointer = pointer;
+        Length = length;
+    }
+
+    public IntPtr Pointer { get; }
+    public int Length { get; }
+
+    public static NativeUtf8 From(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return new NativeUtf8(IntPtr.Zero, 0);
+        }
+        var bytes = Encoding.UTF8.GetBytes(value);
+        var pointer = Marshal.AllocCoTaskMem(bytes.Length);
+        Marshal.Copy(bytes, 0, pointer, bytes.Length);
+        return new NativeUtf8(pointer, bytes.Length);
+    }
+
+    public void Dispose()
+    {
+        if (Pointer != IntPtr.Zero)
+        {
+            Marshal.FreeCoTaskMem(Pointer);
+        }
+    }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeContextOpenRequest
+{
+    public int StructSize;
+    public IntPtr InputPathUtf8;
+    public int InputPathUtf8Len;
+    public IntPtr UnityVersionUtf8;
+    public int UnityVersionUtf8Len;
+    public IntPtr AssetTypesCsvUtf8;
+    public int AssetTypesCsvUtf8Len;
+    public IntPtr OutputDirUtf8;
+    public int OutputDirUtf8Len;
+    public int LoadAllAssets;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeContextOpenResponse
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int ContextAbiVersion;
+    public int Status;
+    public int ErrorCode;
+    public long ContextId;
+    public int AssetsFileCount;
+    public int ExportableAssetCount;
+    public int ObjectIndexCount;
+    public int HasMoreAssets;
+    public IntPtr UnityVersionUtf8;
+    public int UnityVersionUtf8Len;
+    public IntPtr Buffer;
+    public long BufferLen;
+    public long DurationMs;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeContextCloseRequest
+{
+    public int StructSize;
+    public long ContextId;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeContextCloseResponse
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int ContextAbiVersion;
+    public int Status;
+    public int ErrorCode;
+    public long ContextId;
+    public long DurationMs;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeObjectListRequest
+{
+    public int StructSize;
+    public long ContextId;
+    public int Offset;
+    public int Limit;
+    public IntPtr AssetTypesCsvUtf8;
+    public int AssetTypesCsvUtf8Len;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeObjectTable
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int ObjectTableAbiVersion;
+    public int Status;
+    public int ErrorCode;
+    public long ContextId;
+    public int Offset;
+    public int Limit;
+    public int NextOffset;
+    public int HasMore;
+    public int TotalCount;
+    public int ReturnedCount;
+    public IntPtr Objects;
+    public IntPtr StringData;
+    public int StringDataLen;
+    public IntPtr Buffer;
+    public long BufferLen;
+    public long DurationMs;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeAssetObject
+{
+    public int Index;
+    public int TypeId;
+    public long PathId;
+    public long Size;
+    public long EstimatedPayloadCapacity;
+    public long RawPayloadCapacity;
+    public long ImagePayloadCapacity;
+    public long TextPayloadCapacity;
+    public int PayloadCapacityFlags;
+    public int Reserved;
+    public int NameOffset;
+    public int NameLen;
+    public int ContainerOffset;
+    public int ContainerLen;
+    public int TypeOffset;
+    public int TypeLen;
+    public int UniqueIdOffset;
+    public int UniqueIdLen;
+    public int SourceFileOffset;
+    public int SourceFileLen;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeObjectReadItemRequest
+{
+    public long PathId;
+    public IntPtr KindUtf8;
+    public int KindUtf8Len;
+    public IntPtr ImageFormatUtf8;
+    public int ImageFormatUtf8Len;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeObjectReadBatchIntoRequestV4
+{
+    public int StructSize;
+    public long ContextId;
+    public IntPtr Items;
+    public int Count;
+    public int Flags;
+    public IntPtr ItemsBuffer;
+    public long ItemsBufferLen;
+    public IntPtr Payload;
+    public long PayloadLen;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NativeObjectReadBatchRetryResponseV7
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int ObjectReadBatchAbiVersion;
+    public int Status;
+    public int ErrorCode;
+    public long ContextId;
+    public int RequestedCount;
+    public int ReturnedCount;
+    public int FailedCount;
+    public IntPtr Items;
+    public IntPtr StringData;
+    public int StringDataLen;
+    public IntPtr ItemsBuffer;
+    public long ItemsBufferLen;
+    public IntPtr Payload;
+    public long PayloadLen;
+    public long RequiredItemsBufferLen;
+    public int RequiredStringDataLen;
+    public long RequiredPayloadLen;
+    public long DurationMs;
+    public long ResultHandle;
+    public int OwnershipFlags;
+    public int Flags;
+    public int Reserved;
+}
+
 internal sealed class BenchOptions
 {
     public string InputPath { get; set; } = "";
@@ -423,7 +648,7 @@ internal sealed class BenchOptions
     public int WarmupIterations { get; private init; } = 1;
     public int ReadCount { get; private init; }
     public string Kind { get; private init; } = "auto";
-    public string ImageFormat { get; private init; } = "bmp";
+    public string ImageFormat { get; private init; } = "raw_rgba";
     public List<string> AssetTypes { get; private init; } = new();
     public bool DeobfuscateInput { get; private init; }
 
@@ -470,7 +695,7 @@ internal sealed class BenchOptions
             WarmupIterations = ReadInt(values, "--warmup", 1),
             ReadCount = ReadInt(values, "--read-count", 0),
             Kind = values.TryGetValue("--kind", out var kind) ? kind : "auto",
-            ImageFormat = values.TryGetValue("--image-format", out var imageFormat) ? imageFormat : "bmp",
+            ImageFormat = values.TryGetValue("--image-format", out var imageFormat) ? imageFormat : "raw_rgba",
             AssetTypes = values.TryGetValue("--asset-types", out var assetTypes)
                 ? assetTypes.Split(',', ';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
                 : new List<string>(),
@@ -506,7 +731,7 @@ internal sealed class BenchOptions
             "net9.0",
             RuntimeInformation.RuntimeIdentifier,
             "publish",
-            "HarukiAssetStudioNative" + extension));
+            "HarukiAssetStudioFFI" + extension));
     }
 }
 

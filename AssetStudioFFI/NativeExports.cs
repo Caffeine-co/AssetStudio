@@ -11,8 +11,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Texture2DDecoder;
@@ -21,11 +19,10 @@ namespace AssetStudioFFI;
 
 public static unsafe class NativeExports
 {
-    private const int NativeAbiVersion = 1;
-    private const int NativeSchemaVersion = 2;
-    internal const int NativeAbiVersionForEnvelope = NativeAbiVersion;
-    internal const int NativeSchemaVersionForEnvelope = NativeSchemaVersion;
-    private const string CoreApiVersion = "1.0";
+    private const int FfiAbiVersion = 1;
+    private const int FfiSchemaVersion = 2;
+    internal const int FfiAbiVersionForEnvelope = FfiAbiVersion;
+    internal const int FfiSchemaVersionForEnvelope = FfiSchemaVersion;
     private static readonly NativeDiagnostics Diagnostics = NativeDiagnostics.CreateFromEnvironment();
     private static readonly string WorkerId = Environment.ProcessId.ToString(CultureInfo.InvariantCulture);
     private static readonly long MaxCachedObjectReadBatchPayloadBytes = ReadLongEnvironment(
@@ -34,19 +31,20 @@ public static unsafe class NativeExports
     private const uint PayloadBundleMagic = 0x42504148; // HAPB
     private const ushort PayloadBundleVersion = 2;
     private const ushort PayloadBundleHeaderLength = 20;
-    private const int ObjectTableAbiVersion = 3;
-    private const int ObjectTableIntoAbiVersion = 3;
-    private const int ObjectReadAbiVersion = 1;
-    private const int ObjectReadBatchAbiVersion = 1;
-    private const int ObjectReadBatchHandleAbiVersion = 1;
-    private const int ObjectReadBatchIntoAbiVersion = 1;
-    private const int ObjectReadBatchByIndexAbiVersion = 1;
-    private const int ObjectReadBatchDirectIntoAbiVersion = 2;
-    private const int ObjectReadBatchDirectRetryAbiVersion = 1;
-    private const int ObjectLookupAbiVersion = 1;
-    private const int ObjectLookupIntoAbiVersion = 1;
-    private const int ContextAbiVersion = 1;
-    private const int LimitsAbiVersion = 1;
+    private const int FfiLayoutVersion = 2;
+    private const int FfiObjectTableAbiVersion = 3;
+    private const int FfiObjectTableIntoAbiVersion = 3;
+    private const int FfiObjectReadAbiVersion = 1;
+    private const int FfiObjectReadBatchAbiVersion = 1;
+    private const int FfiObjectReadBatchHandleAbiVersion = 1;
+    private const int FfiObjectReadBatchIntoAbiVersion = 1;
+    private const int FfiObjectReadBatchByIndexAbiVersion = 1;
+    private const int FfiObjectReadBatchDirectIntoAbiVersion = 2;
+    private const int FfiObjectReadBatchDirectRetryAbiVersion = 1;
+    private const int FfiObjectLookupAbiVersion = 1;
+    private const int FfiObjectLookupIntoAbiVersion = 1;
+    private const int FfiContextAbiVersion = 1;
+    private const int FfiLimitsAbiVersion = 1;
     private const int MaxNativeUtf8ByteLength = 1024 * 1024;
     private const int MaxNativeObjectReadBatchCount = 65536;
     private const int MaxNativeObjectTablePageLimit = 65536;
@@ -54,7 +52,6 @@ public static unsafe class NativeExports
     private static readonly int MaxNativeConcurrentOperations = Math.Max(1, Environment.ProcessorCount);
     private const long MaxNativeObjectReadBatchPayloadBytes = int.MaxValue;
     private static long NextContextId;
-    private static long NextReadObjectsCallSeq;
     private static long NextResultHandle;
     private static readonly object SessionsSync = new();
     private static readonly Dictionary<long, ActiveNativeContext> Sessions = new();
@@ -74,181 +71,84 @@ public static unsafe class NativeExports
             $"image_guard={AssetStudio.ImageSharpNativeAotGuard.Enabled}");
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_version", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int Version(byte** responseJson)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_capabilities_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int CapabilitiesV2(NativeCapabilitiesResponse* response)
     {
-        if (responseJson == null)
+        if (response == null)
         {
             return 1;
         }
 
-        try
-        {
-            var response = new VersionResponse
-            {
-                Success = true,
-                AdapterVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
-                AssetStudioCoreVersion = typeof(AssetStudioSession).Assembly.GetName().Version?.ToString(),
-                AssetStudioCliVersion = null,
-            };
-            *responseJson = AllocateJson(response);
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            *responseJson = AllocateJson(VersionResponse.Fail(ex.ToString()));
-            return 100;
-        }
+        *response = default;
+        response->StructSize = sizeof(NativeCapabilitiesResponse);
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->Status = 0;
+        response->ErrorCode = NativeContextErrorCode.None;
+        response->CoreApiVersionMajor = 1;
+        response->CoreApiVersionMinor = 0;
+        response->ContextAbiVersion = FfiContextAbiVersion;
+        response->ObjectTableAbiVersion = FfiObjectTableAbiVersion;
+        response->ObjectTableIntoAbiVersion = FfiObjectTableIntoAbiVersion;
+        response->ObjectLookupAbiVersion = FfiObjectLookupAbiVersion;
+        response->ObjectLookupIntoAbiVersion = FfiObjectLookupIntoAbiVersion;
+        response->ObjectReadAbiVersion = FfiObjectReadAbiVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
+        response->ObjectReadBatchHandleAbiVersion = FfiObjectReadBatchHandleAbiVersion;
+        response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
+        response->ObjectReadBatchByIndexAbiVersion = FfiObjectReadBatchByIndexAbiVersion;
+        response->ObjectReadBatchDirectIntoAbiVersion = FfiObjectReadBatchDirectIntoAbiVersion;
+        response->ObjectReadBatchDirectRetryAbiVersion = FfiObjectReadBatchDirectRetryAbiVersion;
+        response->SupportsTypedObjectTable = 1;
+        response->SupportsCallerProvidedObjectTableBuffers = 1;
+        response->SupportsTypedObjectLookup = 1;
+        response->SupportsCallerProvidedObjectLookupBuffers = 1;
+        response->SupportsTypedObjectRead = 1;
+        response->SupportsTypedObjectReadBatch = 1;
+        response->SupportsResultHandle = 1;
+        response->SupportsDirectObjectReadRetry = 1;
+        response->SupportsTypedContext = 1;
+        response->SupportsNativeDependencyResolver = 1;
+        response->SupportsAbiLayout = 1;
+        response->SupportsMultipleContexts = 1;
+        response->SupportsConcurrentOperations = 1;
+        response->SupportsContextLifetimeGuards = 1;
+        response->NativeConsoleCapture = 0;
+        response->Flags = 0;
+        return 0;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_capabilities", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int Capabilities(byte** responseJson)
+    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_abi_layout_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static int AbiLayoutV2(NativeAbiLayoutResponse* response)
     {
-        if (responseJson == null)
+        if (response == null)
         {
             return 1;
         }
-        *responseJson = null;
 
-        try
-        {
-            *responseJson = AllocateJson(new CapabilitiesResponse
-            {
-                Success = true,
-                FfiMode = "core",
-                CoreApiVersion = CoreApiVersion,
-                PayloadBundleVersion = PayloadBundleVersion,
-                ObjectTableAbiVersion = ObjectTableAbiVersion,
-                ObjectTableIntoAbiVersion = ObjectTableIntoAbiVersion,
-                ObjectReadAbiVersion = ObjectReadAbiVersion,
-                ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion,
-                ObjectReadBatchHandleAbiVersion = ObjectReadBatchHandleAbiVersion,
-                ObjectReadBatchIntoAbiVersion = ObjectReadBatchIntoAbiVersion,
-                ObjectReadBatchByIndexAbiVersion = ObjectReadBatchByIndexAbiVersion,
-                ObjectReadBatchDirectIntoAbiVersion = ObjectReadBatchDirectIntoAbiVersion,
-                ObjectLookupAbiVersion = ObjectLookupAbiVersion,
-                ObjectLookupIntoAbiVersion = ObjectLookupIntoAbiVersion,
-                ContextAbiVersion = ContextAbiVersion,
-                SupportsTypedObjectTable = true,
-                SupportsCallerProvidedObjectTableBuffers = true,
-                SupportsIndexedAssetTypeFilter = true,
-                SupportsTypedObjectLookup = true,
-                SupportsCallerProvidedObjectLookupBuffers = true,
-                SupportsIndexedExactObjectLookup = true,
-                SupportsObjectLookupContains = true,
-                SupportsTypedObjectRead = true,
-                SupportsTypedObjectReadBatch = true,
-                SupportsCoreObjectReadBatch = true,
-                SupportsTypedObjectReadBatchHandle = true,
-                SupportsResultHandle = true,
-                SupportsStreamingNativeBatchPayload = true,
-                SupportsNativeStreamingPayload = true,
-                NativeStreamingPayloadKinds = new[] { "raw", "audio_raw", "video_raw" },
-                DirectBufferWritePayloadKinds = new[]
-                {
-                    "raw",
-                    "audio_raw",
-                    "video_raw",
-                    "movie_ogv",
-                    "font",
-                    "text_bytes",
-                    "shader_text",
-                    "typetree_json",
-                    "mesh_obj",
-                    "image_bmp",
-                    "image_png",
-                    "image_array_bundle_bmp",
-                    "image_array_bundle_png",
-                    "animator_bundle_fbx",
-                },
-                SourceStreamingPayloadKinds = new[] { "raw", "audio_raw", "video_raw" },
-                ResidentBufferPayloadKinds = new[] { "movie_ogv", "font", "text_bytes" },
-                GeneratedStreamingPayloadKinds = new[] { "shader_text", "typetree_json", "mesh_obj", "image_bmp", "image_png", "image_array_bundle_bmp", "image_array_bundle_png" },
-                TempFileIntermediatePayloadKinds = new[] { "animator_bundle_fbx" },
-                ManagedIntermediatePayloadKinds = Array.Empty<string>(),
-                SupportsEstimatedNativeBatchCapacity = true,
-                SupportsEstimatedObjectPayloadCapacity = true,
-                SupportsPayloadKindCapacityHints = true,
-                SupportsCallerProvidedReadBuffers = true,
-                SupportsDirectObjectReadInto = true,
-                SupportsDirectObjectReadRetry = true,
-                ObjectReadBatchDirectRetryAbiVersion = ObjectReadBatchDirectRetryAbiVersion,
-                SupportsObjectReadByIndex = true,
-                SupportsCachedObjectReadSizeV4 = true,
-                MaxCachedObjectReadBatchPayloadBytes = MaxCachedObjectReadBatchPayloadBytes,
-                SupportsTypedItemErrorMessages = true,
-                SupportsTypedContext = true,
-                SupportsNativeDependencyResolver = true,
-                SupportsAbiLayout = true,
-                AbiLayoutVersion = 1,
-                StructSizes = NativeStructSizes(),
-                MaxNativeUtf8Bytes = MaxNativeUtf8ByteLength,
-                MaxObjectReadBatchCount = MaxNativeObjectReadBatchCount,
-                MaxObjectTablePageLimit = MaxNativeObjectTablePageLimit,
-                MaxObjectReadBatchPayloadBytes = MaxNativeObjectReadBatchPayloadBytes,
-                Texture2DDecoderNativeDependency = NativeDependencyFileName(),
-                Texture2DDecoderNativeCandidatePaths = NativeDependencyCandidates().ToArray(),
-                MaxActiveContexts = MaxNativeActiveContexts,
-                MaxConcurrentOperations = MaxNativeConcurrentOperations,
-                SupportsMultipleContexts = true,
-                SupportsConcurrentOperations = true,
-                SupportsContextLifetimeGuards = true,
-                ContextLifetimeAbiVersion = 1,
-                LegacyStaticEngine = false,
-                NativeConsoleCapture = false,
-                ObjectKinds = new[]
-                {
-                    "auto",
-                    "image",
-                    "image_archive",
-                    "audio",
-                    "raw",
-                    "video",
-                    "font",
-                    "shader",
-                    "text",
-                    "text_bytes",
-                    "typetree_json",
-                    "mesh",
-                    "obj",
-                    "animator",
-                    "fbx",
-                },
-                ImageFormats = new[] { "bmp", "png" },
-            });
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            *responseJson = AllocateJson(CapabilitiesResponse.Fail(ex.ToString()));
-            return 100;
-        }
-    }
-
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_abi_layout", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int AbiLayout(byte** responseJson)
-    {
-        if (responseJson == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-
-        try
-        {
-            *responseJson = AllocateJson(new AbiLayoutResponse
-            {
-                Success = true,
-                AbiLayoutVersion = 1,
-                StructSizes = NativeStructSizes(),
-            });
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            *responseJson = AllocateJson(AbiLayoutResponse.Fail(ex.ToString()));
-            return 100;
-        }
+        *response = default;
+        response->StructSize = sizeof(NativeAbiLayoutResponse);
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->Status = 0;
+        response->ErrorCode = NativeContextErrorCode.None;
+        response->LayoutVersion = FfiLayoutVersion;
+        response->ContextOpenRequest = sizeof(NativeContextOpenRequest);
+        response->ContextOpenResponse = sizeof(NativeContextOpenResponse);
+        response->ContextCloseRequest = sizeof(NativeContextCloseRequest);
+        response->ContextCloseResponse = sizeof(NativeContextCloseResponse);
+        response->LimitsResponse = sizeof(NativeLimitsResponse);
+        response->CapabilitiesResponse = sizeof(NativeCapabilitiesResponse);
+        response->ObjectListRequest = sizeof(NativeObjectListRequest);
+        response->ObjectListIntoRequestV3 = sizeof(NativeObjectListIntoRequest);
+        response->ObjectTable = sizeof(NativeObjectTable);
+        response->AssetObject = sizeof(NativeAssetObject);
+        response->ObjectReadItemRequest = sizeof(NativeObjectReadItemRequest);
+        response->ObjectReadBatchIntoRequestV4 = sizeof(NativeObjectReadBatchIntoRequestV4);
+        response->ObjectReadItemResponseV4 = sizeof(NativeObjectReadItemResponseV4);
+        response->ObjectReadBatchRetryResponseV7 = sizeof(NativeObjectReadBatchRetryResponseV7);
+        response->Flags = 0;
+        return 0;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_limits_v1", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -261,9 +161,9 @@ public static unsafe class NativeExports
 
         *response = default;
         response->StructSize = sizeof(NativeLimitsResponse);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->LimitsAbiVersion = LimitsAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->LimitsAbiVersion = FfiLimitsAbiVersion;
         response->Status = 0;
         response->ErrorCode = NativeContextErrorCode.None;
         response->MaxNativeUtf8Bytes = MaxNativeUtf8ByteLength;
@@ -281,83 +181,6 @@ public static unsafe class NativeExports
         return 0;
     }
 
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_inspect", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int Inspect(byte* requestJson, byte** responseJson)
-    {
-        if (responseJson == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(InspectResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(InspectResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.InspectRequest);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(InspectResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var operationId = Diagnostics.Begin("inspect", request.InputPath);
-            AssetStudioInspectResult result;
-            try
-            {
-                using var session = AssetStudioSession.Open(request.ToInspectOptions());
-                result = session.InspectResult;
-            }
-            catch (Exception ex)
-            {
-                Diagnostics.Exception(operationId, ex);
-                throw;
-            }
-            finally
-            {
-                ResetProcessLocalState();
-            }
-
-            *responseJson = AllocateJson(new InspectResponse
-            {
-                Success = true,
-                AssetsFileCount = result.AssetsFileCount,
-                ExportableAssetCount = result.ExportableAssetCount,
-                UnityVersion = result.UnityVersion,
-                Assets = result.Assets,
-                Warnings = Diagnostics.ResponseWarnings(operationId),
-                PhaseMs = result.PhaseMs,
-                DurationMs = stopwatch.ElapsedMilliseconds,
-            });
-            Diagnostics.End(operationId, "inspect", stopwatch.ElapsedMilliseconds, $"assets={result.Assets.Count}");
-            return 0;
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("inspect", ex);
-            *responseJson = AllocateJson(InspectResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("inspect", ex);
-            *responseJson = AllocateJson(InspectResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InternalError));
-            return 100;
-        }
-    }
-
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.Texture2D))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.Texture2DArray))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.GLTextureSettings))]
@@ -366,113 +189,6 @@ public static unsafe class NativeExports
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.TextureFormat))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.GraphicsFormat))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.ClassIDType))]
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_open", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextOpen(byte* requestJson, byte** responseJson)
-    {
-        if (responseJson == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(ContextOpenResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(ContextOpenResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.InspectRequest);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(ContextOpenResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var operationId = Diagnostics.Begin("context_open", request.InputPath);
-            if (ActiveSessionCount() >= MaxNativeActiveContexts)
-            {
-                *responseJson = AllocateJson(ContextOpenResponse.Fail(
-                    $"native context limit {MaxNativeActiveContexts} is already reached",
-                    stopwatch.ElapsedMilliseconds,
-                    NativeErrorCodes.ContextLimit));
-                return 5;
-            }
-
-            AssetStudioSession session;
-            try
-            {
-                session = AssetStudioSession.Open(request.ToInspectOptions());
-            }
-            catch (Exception ex)
-            {
-                Diagnostics.Exception(operationId, ex);
-                throw;
-            }
-
-            var contextId = Interlocked.Increment(ref NextContextId);
-            var result = session.InspectResult;
-            var objectIndexCount = session.ObjectIndexCount;
-            var totalAssetCount = session.CountObjects(request.AssetTypes);
-            var responseAssets = request.IncludeAssets
-                ? session.ListObjects(new AssetStudioObjectListOptions { AssetTypes = request.AssetTypes })
-                : Array.Empty<AssetStudioAssetInfo>();
-            if (!TryAddSession(new ActiveNativeContext(contextId, operationId, request.InputPath, stopwatch, request.AssetTypes, session)))
-            {
-                session.Dispose();
-                *responseJson = AllocateJson(ContextOpenResponse.Fail(
-                    $"native context limit {MaxNativeActiveContexts} is already reached",
-                    stopwatch.ElapsedMilliseconds,
-                    NativeErrorCodes.ContextLimit));
-                return 5;
-            }
-
-            *responseJson = AllocateJson(new ContextOpenResponse
-            {
-                Success = true,
-                ContextId = contextId,
-                AssetsFileCount = result.AssetsFileCount,
-                ExportableAssetCount = totalAssetCount,
-                UnityVersion = result.UnityVersion,
-                Assets = responseAssets,
-                Warnings = Diagnostics.ResponseWarnings(operationId),
-                PhaseMs = result.PhaseMs,
-                WorkerId = WorkerId,
-                ObjectIndexCount = objectIndexCount,
-                ReturnedAssetCount = request.IncludeAssets ? responseAssets.Length : 0,
-                HasMoreAssets = request.IncludeAssets
-                    ? responseAssets.Length < totalAssetCount
-                    : totalAssetCount > 0,
-                DurationMs = stopwatch.ElapsedMilliseconds,
-            });
-            Diagnostics.End(operationId, "context_open", stopwatch.ElapsedMilliseconds, $"assets={responseAssets.Length}/{totalAssetCount} object_index={objectIndexCount}");
-            return 0;
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("context_open", ex);
-            ResetProcessLocalState();
-            *responseJson = AllocateJson(ContextOpenResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("context_open", ex);
-            ResetProcessLocalState();
-            *responseJson = AllocateJson(ContextOpenResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InternalError));
-            return 100;
-        }
-    }
-
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_open_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int ContextOpenV2(NativeContextOpenRequest* request, NativeContextOpenResponse* response)
     {
@@ -587,90 +303,9 @@ public static unsafe class NativeExports
     {
         *response = default;
         response->StructSize = sizeof(NativeContextOpenResponse);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ContextAbiVersion = ContextAbiVersion;
-    }
-
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_close", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextClose(byte* requestJson, byte** responseJson)
-    {
-        if (responseJson == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(ContextCloseResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(ContextCloseResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.ContextCloseRequest);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(ContextCloseResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            if (!TryRemoveSession(request.ContextId, out var context))
-            {
-                *responseJson = AllocateJson(ContextCloseResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextNotFound));
-                return 4;
-            }
-
-            if (!context.TryBeginClose())
-            {
-                lock (SessionsSync)
-                {
-                    Sessions[request.ContextId] = context;
-                }
-                *responseJson = AllocateJson(ContextCloseResponse.Fail($"native context {request.ContextId} is busy", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextBusy));
-                return 10;
-            }
-
-            var operationId = context.OperationId;
-            try
-            {
-                context.ClearPendingReadBatch();
-                context.Session.Dispose();
-            }
-            finally
-            {
-                ReleaseResultArenasForContext(request.ContextId);
-            }
-            Diagnostics.Event(operationId, "context_closed", $"duration_ms={stopwatch.ElapsedMilliseconds}");
-            *responseJson = AllocateJson(new ContextCloseResponse
-            {
-                Success = true,
-                Warnings = Diagnostics.ResponseWarnings(operationId),
-                DurationMs = stopwatch.ElapsedMilliseconds,
-            });
-            return 0;
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("context_close", ex);
-            *responseJson = AllocateJson(ContextCloseResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("context_close", ex);
-            *responseJson = AllocateJson(ContextCloseResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InternalError));
-            return 100;
-        }
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ContextAbiVersion = FfiContextAbiVersion;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_close_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -752,105 +387,9 @@ public static unsafe class NativeExports
     {
         *response = default;
         response->StructSize = sizeof(NativeContextCloseResponse);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ContextAbiVersion = ContextAbiVersion;
-    }
-
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextListObjects(byte* requestJson, byte** responseJson)
-    {
-        if (responseJson == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(ContextListObjectsResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(ContextListObjectsResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.ContextListObjectsRequest);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(ContextListObjectsResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var acquireResult = TryAcquireSession(request.ContextId, out var context);
-            if (acquireResult == NativeContextAcquireResult.NotFound || context == null)
-            {
-                *responseJson = AllocateJson(ContextListObjectsResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextNotFound));
-                return 4;
-            }
-            if (acquireResult == NativeContextAcquireResult.Busy)
-            {
-                *responseJson = AllocateJson(ContextListObjectsResponse.Fail($"native context {request.ContextId} is busy", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextBusy));
-                return 5;
-            }
-
-            try
-            {
-                var offset = Math.Max(0, request.Offset);
-                var requestedAssetTypes = request.AssetTypes ?? context.RequestedAssetTypes;
-                var totalCount = context.Session.CountObjects(requestedAssetTypes);
-                var limit = request.Limit <= 0 ? totalCount : request.Limit;
-                var page = context.Session.ListObjects(new AssetStudioObjectListOptions
-                {
-                    Offset = offset,
-                    Limit = limit,
-                    AssetTypes = requestedAssetTypes,
-                });
-                var nextOffset = offset + page.Length;
-                var hasMore = nextOffset < totalCount;
-                Diagnostics.Event(
-                    context.OperationId,
-                    "context_list_objects",
-                    $"offset={offset} limit={limit} returned={page.Length}/{totalCount}");
-
-                *responseJson = AllocateJson(new ContextListObjectsResponse
-                {
-                    Success = true,
-                    ContextId = request.ContextId,
-                    Offset = offset,
-                    Limit = limit,
-                    NextOffset = hasMore ? nextOffset : null,
-                    TotalCount = totalCount,
-                    Assets = page,
-                    Warnings = Diagnostics.ResponseWarnings(context.OperationId),
-                    DurationMs = stopwatch.ElapsedMilliseconds,
-                });
-                return 0;
-            }
-            finally
-            {
-                context.Release();
-            }
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("context_list_objects", ex);
-            *responseJson = AllocateJson(ContextListObjectsResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("context_list_objects", ex);
-            *responseJson = AllocateJson(ContextListObjectsResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InternalError));
-            return 100;
-        }
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ContextAbiVersion = FfiContextAbiVersion;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_list_objects_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -1550,9 +1089,9 @@ public static unsafe class NativeExports
     {
         *response = default;
         response->StructSize = sizeof(NativeObjectTable);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectTableAbiVersion = ObjectTableAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectTableAbiVersion = FfiObjectTableAbiVersion;
     }
 
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.Texture2D))]
@@ -1570,274 +1109,6 @@ public static unsafe class NativeExports
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties, typeof(AssetStudio.AnimationClip))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.FMODSoundType))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicFields, typeof(AssetStudio.AudioCompressionFormat))]
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_object", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObject(byte* requestJson, byte** responseJson, byte** payloadPtr, long* payloadLen)
-    {
-        if (responseJson == null || payloadPtr == null || payloadLen == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-        *payloadPtr = null;
-        *payloadLen = 0;
-
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(ObjectReadResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(ObjectReadResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.ContextReadObjectRequest);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(ObjectReadResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-            var acquireResult = TryAcquireSession(request.ContextId, out var context);
-            if (acquireResult == NativeContextAcquireResult.NotFound || context == null)
-            {
-                *responseJson = AllocateJson(ObjectReadResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextNotFound));
-                return 4;
-            }
-            if (acquireResult == NativeContextAcquireResult.Busy)
-            {
-                *responseJson = AllocateJson(ObjectReadResponse.Fail($"native context {request.ContextId} is busy", stopwatch.ElapsedMilliseconds, NativeErrorCodes.ContextBusy));
-                return 5;
-            }
-
-            try
-            {
-                var operationId = context.OperationId;
-                Diagnostics.Event(operationId, "context_read_object", $"path_id={request.PathId} kind={request.Kind}");
-                using var payload = new NativePayloadAppendStream();
-                var batch = context.Session.ReadObjectsBatchInto(
-                    new[] { request.ToReadOptions() },
-                    new AssetStudioStreamPayloadWriter(payload));
-                var read = batch.Reads.Count > 0
-                    ? batch.Reads[0]
-                    : new AssetStudioObjectReadBatchItemResult
-                    {
-                        Status = 100,
-                        ErrorKind = AssetStudioObjectReadErrorKind.InternalError,
-                        ErrorMessage = "object read returned no result",
-                    };
-
-                if (read.Status != 0)
-                {
-                    *responseJson = AllocateJson(ObjectReadResponse.Fail(
-                        read.ErrorMessage ?? $"failed to read asset path_id {request.PathId}",
-                        stopwatch.ElapsedMilliseconds,
-                        ToNativeErrorCode(read.ErrorKind)));
-                    return 100;
-                }
-
-                if (payload.Length > 0)
-                {
-                    *payloadPtr = payload.Detach();
-                    *payloadLen = payload.Length;
-                }
-
-                *responseJson = AllocateJson(new ObjectReadResponse
-                {
-                    Success = true,
-                    Asset = read.Asset,
-                    PayloadKind = read.PayloadKind,
-                    PayloadLen = read.PayloadLen,
-                    SuggestedExtension = read.SuggestedExtension,
-                    Warnings = Diagnostics.ResponseWarnings(operationId),
-                    PhaseMs = new Dictionary<string, long>(),
-                    DurationMs = stopwatch.ElapsedMilliseconds,
-                });
-                return 0;
-            }
-            finally
-            {
-                context.Release();
-            }
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("context_read_object", ex);
-            *responseJson = AllocateJson(ObjectReadResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("context_read_object", ex);
-            *responseJson = AllocateJson(ObjectReadResponse.Fail(ex.ToString(), stopwatch.ElapsedMilliseconds, NativeErrorCodes.InternalError));
-            return 100;
-        }
-    }
-
-    [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects", CallConvs = new[] { typeof(CallConvCdecl) })]
-    public static int ContextReadObjects(byte* requestJson, byte** responseJson, byte** payloadPtr, long* payloadLen)
-    {
-        if (responseJson == null || payloadPtr == null || payloadLen == null)
-        {
-            return 1;
-        }
-        *responseJson = null;
-        *payloadPtr = null;
-        *payloadLen = 0;
-
-        var stopwatch = Stopwatch.StartNew();
-        var phaseMs = new Dictionary<string, long>(StringComparer.Ordinal);
-        long callSeq = 0;
-        long requestedContextId = 0;
-        try
-        {
-            if (requestJson == null)
-            {
-                *responseJson = AllocateJson(ObjectReadBatchResponse.Fail("request_json is null", stopwatch.ElapsedMilliseconds, errorCode: NativeErrorCodes.NullPointer));
-                return 2;
-            }
-
-            var json = Marshal.PtrToStringUTF8((IntPtr)requestJson);
-            if (string.IsNullOrWhiteSpace(json))
-            {
-                *responseJson = AllocateJson(ObjectReadBatchResponse.Fail("request_json is empty", stopwatch.ElapsedMilliseconds, errorCode: NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-
-            var phaseStopwatch = Stopwatch.StartNew();
-            var request = JsonSerializer.Deserialize(json, NativeJsonContext.Default.ContextReadObjectsRequest);
-            RecordElapsed(phaseMs, "decode_request", phaseStopwatch);
-            if (request == null)
-            {
-                *responseJson = AllocateJson(ObjectReadBatchResponse.Fail("request_json could not be parsed", stopwatch.ElapsedMilliseconds, errorCode: NativeErrorCodes.InvalidRequest));
-                return 2;
-            }
-            requestedContextId = request.ContextId;
-            var acquireResult = TryAcquireSession(request.ContextId, out var context);
-            if (acquireResult == NativeContextAcquireResult.NotFound || context == null)
-            {
-                *responseJson = AllocateJson(ObjectReadBatchResponse.Fail($"native context {request.ContextId} is not active", stopwatch.ElapsedMilliseconds, errorCode: NativeErrorCodes.ContextNotFound));
-                return 4;
-            }
-            if (acquireResult == NativeContextAcquireResult.Busy)
-            {
-                *responseJson = AllocateJson(ObjectReadBatchResponse.Fail($"native context {request.ContextId} is busy", stopwatch.ElapsedMilliseconds, errorCode: NativeErrorCodes.ContextBusy));
-                return 5;
-            }
-
-            try
-            {
-                var operationId = context.OperationId;
-                callSeq = Interlocked.Increment(ref NextReadObjectsCallSeq);
-                Diagnostics.Event(operationId, "context_read_objects", $"count={request.Objects.Count}");
-                phaseStopwatch.Restart();
-                NativePayloadBundle payload = default;
-                using var rawPayload = new NativePayloadAppendStream();
-                var options = request.Objects.Select(item => item.ToReadOptions()).ToArray();
-                var batch = context.Session.ReadObjectsBatchInto(options, new AssetStudioStreamPayloadWriter(rawPayload));
-                var readPayloadMs = phaseStopwatch.ElapsedMilliseconds;
-                var rawPayloadPtr = rawPayload.Detach();
-                try
-                {
-                    RecordElapsed(phaseMs, "read_objects", phaseStopwatch);
-
-                    phaseStopwatch.Restart();
-                    payload = WritePayloadBundleToNative(batch.Reads, rawPayloadPtr, rawPayload.Length);
-                    RecordElapsed(phaseMs, "write_payload_bundle", phaseStopwatch);
-                    if (payload.Pointer != null && payload.Length > 0)
-                    {
-                        *payloadPtr = payload.Pointer;
-                        *payloadLen = payload.Length;
-                        phaseMs["marshal_payload"] = 0;
-                    }
-                }
-                finally
-                {
-                    if (rawPayloadPtr != null)
-                    {
-                        NativeMemory.Free(rawPayloadPtr);
-                    }
-                }
-
-                var reads = batch.Reads.Select(read => read.Status == 0
-                    ? new ObjectReadResponse
-                    {
-                        Success = true,
-                        Asset = read.Asset,
-                        PayloadKind = read.PayloadKind,
-                        PayloadLen = read.PayloadLen,
-                        SuggestedExtension = read.SuggestedExtension,
-                        Warnings = Array.Empty<string>(),
-                        PhaseMs = new Dictionary<string, long>(),
-                        DurationMs = 0,
-                    }
-                    : ObjectReadResponse.Fail(
-                        read.ErrorMessage ?? $"failed to read asset path_id {read.PathId}",
-                        errorCode: ToNativeErrorCode(read.ErrorKind))).ToArray();
-
-                *responseJson = AllocateJson(new ObjectReadBatchResponse
-                {
-                    Success = true,
-                    Reads = reads,
-                    Warnings = Diagnostics.ResponseWarnings(operationId),
-                    PhaseMs = phaseMs,
-                    AssetTypeCounts = CountBy(reads, read => read.Asset?.Type),
-                    PayloadKindCounts = CountBy(reads, read => read.PayloadKind),
-                    PayloadBytesByKind = SumPayloadBytesByKind(reads),
-                    PayloadLen = payload.Length,
-                    ObjectCount = request.Objects.Count,
-                    PayloadBundleVersion = payload.Version,
-                    PayloadBundleEntryCount = payload.EntryCount,
-                    PayloadBundleBytes = payload.Length,
-                    PayloadDataBytes = payload.DataBytes,
-                    FailedCount = batch.FailedCount,
-                    ReadPayloadMs = readPayloadMs,
-                    WorkerId = WorkerId,
-                    CallSeq = callSeq,
-                    ObjectIndexCount = context.Session.ObjectIndexCount,
-                    PhaseStats = new Dictionary<string, NativePhaseStats>(),
-                    DurationMs = stopwatch.ElapsedMilliseconds,
-                });
-                return 0;
-            }
-            finally
-            {
-                context.Release();
-            }
-        }
-        catch (JsonException ex)
-        {
-            Diagnostics.Exception("context_read_objects", ex);
-            *responseJson = AllocateJson(ObjectReadBatchResponse.Fail(
-                ex.ToString(),
-                stopwatch.ElapsedMilliseconds,
-                WorkerId,
-                callSeq,
-                ObjectIndexCountForContext(requestedContextId),
-                phaseMs,
-                NativeErrorCodes.InvalidJson));
-            return 2;
-        }
-        catch (Exception ex)
-        {
-            Diagnostics.Exception("context_read_objects", ex);
-            *responseJson = AllocateJson(ObjectReadBatchResponse.Fail(
-                ex.ToString(),
-                stopwatch.ElapsedMilliseconds,
-                WorkerId,
-                callSeq,
-                ObjectIndexCountForContext(requestedContextId),
-                phaseMs,
-                NativeErrorCodes.InternalError));
-            return 100;
-        }
-    }
-
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_object_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static int ContextReadObjectV2(NativeObjectReadRequest* request, NativeObjectReadResponse* response)
     {
@@ -1941,9 +1212,9 @@ public static unsafe class NativeExports
     private static void InitializeNativeObjectReadResponse(NativeObjectReadResponse* response)
     {
         *response = default;
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadAbiVersion = ObjectReadAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadAbiVersion = FfiObjectReadAbiVersion;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_v2", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2049,9 +1320,9 @@ public static unsafe class NativeExports
     private static void InitializeNativeObjectReadBatchResponse(NativeObjectReadBatchResponse* response)
     {
         *response = default;
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_v3", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2185,10 +1456,10 @@ public static unsafe class NativeExports
     private static void InitializeNativeObjectReadBatchResponseV3(NativeObjectReadBatchResponseV3* response)
     {
         *response = default;
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion;
-        response->ObjectReadBatchHandleAbiVersion = ObjectReadBatchHandleAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
+        response->ObjectReadBatchHandleAbiVersion = FfiObjectReadBatchHandleAbiVersion;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_context_read_objects_size_v4", CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2740,21 +2011,21 @@ public static unsafe class NativeExports
     {
         *response = default;
         response->StructSize = sizeof(NativeObjectReadBatchSizeResponseV4);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion;
-        response->ObjectReadBatchIntoAbiVersion = ObjectReadBatchIntoAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
+        response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
     }
 
     private static void InitializeNativeObjectReadBatchRetryResponseV7(NativeObjectReadBatchRetryResponseV7* response)
     {
         *response = default;
         response->StructSize = sizeof(NativeObjectReadBatchRetryResponseV7);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion;
-        response->ObjectReadBatchIntoAbiVersion = ObjectReadBatchIntoAbiVersion;
-        response->ObjectReadBatchDirectRetryAbiVersion = ObjectReadBatchDirectRetryAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
+        response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
+        response->ObjectReadBatchDirectRetryAbiVersion = FfiObjectReadBatchDirectRetryAbiVersion;
     }
 
     private static void CopyRetryValidationResponse(NativeObjectReadBatchRetryResponseV7* target, NativeObjectReadBatchIntoResponseV4* source)
@@ -2772,10 +2043,10 @@ public static unsafe class NativeExports
     {
         *response = default;
         response->StructSize = sizeof(NativeObjectReadBatchIntoResponseV4);
-        response->AbiVersion = NativeAbiVersion;
-        response->SchemaVersion = NativeSchemaVersion;
-        response->ObjectReadBatchAbiVersion = ObjectReadBatchAbiVersion;
-        response->ObjectReadBatchIntoAbiVersion = ObjectReadBatchIntoAbiVersion;
+        response->AbiVersion = FfiAbiVersion;
+        response->SchemaVersion = FfiSchemaVersion;
+        response->ObjectReadBatchAbiVersion = FfiObjectReadBatchAbiVersion;
+        response->ObjectReadBatchIntoAbiVersion = FfiObjectReadBatchIntoAbiVersion;
     }
 
     private static int ValidateObjectReadBatchRequestV4(
@@ -3687,29 +2958,6 @@ public static unsafe class NativeExports
         phaseMs[phase] = stopwatch.ElapsedMilliseconds;
     }
 
-    private static Dictionary<string, int> CountBy(
-        IEnumerable<ObjectReadResponse> reads,
-        Func<ObjectReadResponse, string?> keySelector)
-    {
-        var result = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var read in reads)
-        {
-            if (!read.Success)
-            {
-                continue;
-            }
-
-            var key = keySelector(read);
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                key = "unknown";
-            }
-
-            result[key] = result.TryGetValue(key, out var count) ? count + 1 : 1;
-        }
-        return result;
-    }
-
     private static string ClassifyReadError(Exception exception)
     {
         if (exception is NotSupportedException)
@@ -3935,22 +3183,6 @@ public static unsafe class NativeExports
         }
     }
 
-    private static Dictionary<string, long> SumPayloadBytesByKind(IEnumerable<ObjectReadResponse> reads)
-    {
-        var result = new Dictionary<string, long>(StringComparer.Ordinal);
-        foreach (var read in reads)
-        {
-            if (!read.Success)
-            {
-                continue;
-            }
-
-            var key = string.IsNullOrWhiteSpace(read.PayloadKind) ? "unknown" : read.PayloadKind;
-            result[key] = result.TryGetValue(key, out var bytes) ? bytes + read.PayloadLen : read.PayloadLen;
-        }
-        return result;
-    }
-
     private static IReadOnlyCollection<string>? ParseNativeAssetTypes(byte* value, int byteLength)
     {
         if (byteLength < 0)
@@ -4138,49 +3370,6 @@ public static unsafe class NativeExports
         return (value + 7) & ~7;
     }
 
-    private static void RecordPhaseSamples(Dictionary<string, List<long>> phaseSamples, IReadOnlyDictionary<string, long> phaseMs)
-    {
-        foreach (var (phase, elapsedMs) in phaseMs)
-        {
-            if (!phaseSamples.TryGetValue(phase, out var samples))
-            {
-                samples = new List<long>();
-                phaseSamples[phase] = samples;
-            }
-            samples.Add(elapsedMs);
-        }
-    }
-
-    private static Dictionary<string, NativePhaseStats> BuildPhaseStats(Dictionary<string, List<long>> phaseSamples)
-    {
-        var result = new Dictionary<string, NativePhaseStats>(StringComparer.Ordinal);
-        foreach (var (phase, samples) in phaseSamples)
-        {
-            if (samples.Count == 0)
-            {
-                continue;
-            }
-            samples.Sort();
-            result[phase] = new NativePhaseStats
-            {
-                P50Ms = PercentileNearestRank(samples, 50),
-                P95Ms = PercentileNearestRank(samples, 95),
-            };
-        }
-        return result;
-    }
-
-    private static long PercentileNearestRank(List<long> sortedSamples, int percentile)
-    {
-        if (sortedSamples.Count == 0)
-        {
-            return 0;
-        }
-        var rank = (int)Math.Ceiling(percentile / 100.0 * sortedSamples.Count);
-        var index = Math.Clamp(rank - 1, 0, sortedSamples.Count - 1);
-        return sortedSamples[index];
-    }
-
     [UnmanagedCallersOnly(EntryPoint = "haruki_assetstudio_free_string", CallConvs = new[] { typeof(CallConvCdecl) })]
     public static void FreeString(byte* value)
     {
@@ -4218,19 +3407,6 @@ public static unsafe class NativeExports
 
         arena.Dispose();
         return 0;
-    }
-
-    private static byte* AllocateJson<T>(T value)
-    {
-        var json = JsonSerializer.Serialize(value, typeof(T), NativeJsonContext.Default);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        var buffer = (byte*)NativeMemory.Alloc((nuint)bytes.Length + 1);
-        fixed (byte* source = bytes)
-        {
-            Buffer.MemoryCopy(source, buffer, bytes.Length + 1, bytes.Length);
-        }
-        buffer[bytes.Length] = 0;
-        return buffer;
     }
 
     private static NativePayloadBundle WritePayloadBundleToNative(IReadOnlyCollection<(string Name, byte[] Payload)> entries)
@@ -4548,35 +3724,6 @@ public static unsafe class NativeExports
         return value.Any(char.IsWhiteSpace) ? $"\"{value.Replace("\"", "\\\"")}\"" : value;
     }
 
-    private static Dictionary<string, int> NativeStructSizes() => new()
-    {
-        ["haruki_assetstudio_context_open_request"] = sizeof(NativeContextOpenRequest),
-        ["haruki_assetstudio_context_open_response"] = sizeof(NativeContextOpenResponse),
-        ["haruki_assetstudio_context_close_request"] = sizeof(NativeContextCloseRequest),
-        ["haruki_assetstudio_context_close_response"] = sizeof(NativeContextCloseResponse),
-        ["haruki_assetstudio_limits_response"] = sizeof(NativeLimitsResponse),
-        ["haruki_assetstudio_object_list_request"] = sizeof(NativeObjectListRequest),
-        ["haruki_assetstudio_object_list_into_request_v3"] = sizeof(NativeObjectListIntoRequest),
-        ["haruki_assetstudio_object_lookup_request"] = sizeof(NativeObjectLookupRequest),
-        ["haruki_assetstudio_object_lookup_into_request_v2"] = sizeof(NativeObjectLookupIntoRequest),
-        ["haruki_assetstudio_object_table"] = sizeof(NativeObjectTable),
-        ["haruki_assetstudio_asset_object"] = sizeof(NativeAssetObject),
-        ["haruki_assetstudio_object_read_item_request"] = sizeof(NativeObjectReadItemRequest),
-        ["haruki_assetstudio_object_read_batch_request"] = sizeof(NativeObjectReadBatchRequest),
-        ["haruki_assetstudio_object_read_batch_request_v4"] = sizeof(NativeObjectReadBatchRequestV4),
-        ["haruki_assetstudio_object_read_batch_into_request_v4"] = sizeof(NativeObjectReadBatchIntoRequestV4),
-        ["haruki_assetstudio_object_read_item_by_index_request_v5"] = sizeof(NativeObjectReadItemByIndexRequestV5),
-        ["haruki_assetstudio_object_read_batch_by_index_request_v5"] = sizeof(NativeObjectReadBatchByIndexRequestV5),
-        ["haruki_assetstudio_object_read_batch_by_index_into_request_v5"] = sizeof(NativeObjectReadBatchByIndexIntoRequestV5),
-        ["haruki_assetstudio_object_read_item_response"] = sizeof(NativeObjectReadItemResponse),
-        ["haruki_assetstudio_object_read_item_response_v4"] = sizeof(NativeObjectReadItemResponseV4),
-        ["haruki_assetstudio_object_read_batch_response"] = sizeof(NativeObjectReadBatchResponse),
-        ["haruki_assetstudio_object_read_batch_response_v3"] = sizeof(NativeObjectReadBatchResponseV3),
-        ["haruki_assetstudio_object_read_batch_size_response_v4"] = sizeof(NativeObjectReadBatchSizeResponseV4),
-        ["haruki_assetstudio_object_read_batch_into_response_v4"] = sizeof(NativeObjectReadBatchIntoResponseV4),
-        ["haruki_assetstudio_object_read_batch_retry_response_v7"] = sizeof(NativeObjectReadBatchRetryResponseV7),
-    };
-
     private static IntPtr ResolveAssetStudioNativeLibrary(
         string libraryName,
         Assembly assembly,
@@ -4667,7 +3814,8 @@ public static unsafe class NativeExports
             foreach (ProcessModule module in process.Modules)
             {
                 var fileName = Path.GetFileName(module.FileName);
-                if (fileName.StartsWith("HarukiAssetStudioNative", StringComparison.OrdinalIgnoreCase))
+                if (fileName.StartsWith("HarukiAssetStudioFFI", StringComparison.OrdinalIgnoreCase)
+                    || fileName.StartsWith("HarukiAssetStudioNative", StringComparison.OrdinalIgnoreCase))
                 {
                     return Path.GetDirectoryName(module.FileName);
                 }
@@ -4690,7 +3838,7 @@ public static unsafe class NativeExports
 
         try
         {
-            var symbol = (IntPtr)(delegate* unmanaged[Cdecl]<byte**, int>)&Capabilities;
+            var symbol = (IntPtr)(delegate* unmanaged[Cdecl]<NativeCapabilitiesResponse*, int>)&CapabilitiesV2;
             if (dladdr(symbol, out var info) == 0 || info.FileName == IntPtr.Zero)
             {
                 return null;
@@ -4941,6 +4089,74 @@ public struct NativeLimitsResponse
     public int SupportsConcurrentOperations;
     public int LegacyStaticEngine;
     public int NativeConsoleCapture;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeCapabilitiesResponse
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int Status;
+    public NativeContextErrorCode ErrorCode;
+    public int CoreApiVersionMajor;
+    public int CoreApiVersionMinor;
+    public int ContextAbiVersion;
+    public int ObjectTableAbiVersion;
+    public int ObjectTableIntoAbiVersion;
+    public int ObjectLookupAbiVersion;
+    public int ObjectLookupIntoAbiVersion;
+    public int ObjectReadAbiVersion;
+    public int ObjectReadBatchAbiVersion;
+    public int ObjectReadBatchHandleAbiVersion;
+    public int ObjectReadBatchIntoAbiVersion;
+    public int ObjectReadBatchByIndexAbiVersion;
+    public int ObjectReadBatchDirectIntoAbiVersion;
+    public int ObjectReadBatchDirectRetryAbiVersion;
+    public int SupportsTypedObjectTable;
+    public int SupportsCallerProvidedObjectTableBuffers;
+    public int SupportsTypedObjectLookup;
+    public int SupportsCallerProvidedObjectLookupBuffers;
+    public int SupportsTypedObjectRead;
+    public int SupportsTypedObjectReadBatch;
+    public int SupportsResultHandle;
+    public int SupportsDirectObjectReadRetry;
+    public int SupportsTypedContext;
+    public int SupportsNativeDependencyResolver;
+    public int SupportsAbiLayout;
+    public int SupportsMultipleContexts;
+    public int SupportsConcurrentOperations;
+    public int SupportsContextLifetimeGuards;
+    public int NativeConsoleCapture;
+    public int Flags;
+    public int Reserved;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct NativeAbiLayoutResponse
+{
+    public int StructSize;
+    public int AbiVersion;
+    public int SchemaVersion;
+    public int Status;
+    public NativeContextErrorCode ErrorCode;
+    public int LayoutVersion;
+    public int ContextOpenRequest;
+    public int ContextOpenResponse;
+    public int ContextCloseRequest;
+    public int ContextCloseResponse;
+    public int LimitsResponse;
+    public int CapabilitiesResponse;
+    public int ObjectListRequest;
+    public int ObjectListIntoRequestV3;
+    public int ObjectTable;
+    public int AssetObject;
+    public int ObjectReadItemRequest;
+    public int ObjectReadBatchIntoRequestV4;
+    public int ObjectReadItemResponseV4;
+    public int ObjectReadBatchRetryResponseV7;
     public int Flags;
     public int Reserved;
 }
@@ -5955,141 +5171,9 @@ internal unsafe struct NativePayloadAppendBuffer : IDisposable
     }
 }
 
-internal sealed class ContextCloseRequest
-{
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-}
-
-internal sealed class ContextListObjectsRequest
-{
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-
-    [JsonPropertyName("offset")]
-    public int Offset { get; set; }
-
-    [JsonPropertyName("limit")]
-    public int Limit { get; set; } = 1024;
-
-    [JsonPropertyName("asset_types")]
-    public List<string>? AssetTypes { get; set; }
-}
-
-internal sealed class ContextReadObjectRequest
-{
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-
-    [JsonPropertyName("path_id")]
-    public long PathId { get; set; }
-
-    [JsonPropertyName("kind")]
-    public string Kind { get; set; } = "auto";
-
-    [JsonPropertyName("image_format")]
-    public string ImageFormat { get; set; } = "bmp";
-
-    public AssetStudioObjectReadOptions ToReadOptions()
-    {
-        return new AssetStudioObjectReadOptions
-        {
-            PathId = PathId,
-            Kind = Kind,
-            ImageFormat = ImageFormat,
-        };
-    }
-}
-
-internal sealed class ContextReadObjectsRequest
-{
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-
-    [JsonPropertyName("objects")]
-    public List<ContextReadObjectItemRequest> Objects { get; set; } = new();
-}
-
-internal sealed class ContextReadObjectItemRequest
-{
-    [JsonPropertyName("path_id")]
-    public long PathId { get; set; }
-
-    [JsonPropertyName("kind")]
-    public string Kind { get; set; } = "auto";
-
-    [JsonPropertyName("image_format")]
-    public string ImageFormat { get; set; } = "bmp";
-
-    public AssetStudioObjectReadOptions ToReadOptions()
-    {
-        return new AssetStudioObjectReadOptions
-        {
-            PathId = PathId,
-            Kind = Kind,
-            ImageFormat = ImageFormat,
-        };
-    }
-}
-
-internal sealed class InspectRequest
-{
-    [JsonPropertyName("input_path")]
-    public string InputPath { get; set; } = "";
-
-    [JsonPropertyName("asset_types")]
-    public List<string>? AssetTypes { get; set; }
-
-    [JsonPropertyName("unity_version")]
-    public string? UnityVersion { get; set; }
-
-    [JsonPropertyName("filter_exclude_mode")]
-    public bool FilterExcludeMode { get; set; }
-
-    [JsonPropertyName("filter_with_regex")]
-    public bool FilterWithRegex { get; set; }
-
-    [JsonPropertyName("filter_by_name")]
-    public string? FilterByName { get; set; }
-
-    [JsonPropertyName("filter_by_container")]
-    public string? FilterByContainer { get; set; }
-
-    [JsonPropertyName("filter_by_path_ids")]
-    public List<long>? FilterByPathIds { get; set; }
-
-    [JsonPropertyName("load_all_assets")]
-    public bool LoadAllAssets { get; set; }
-
-    [JsonPropertyName("include_assets")]
-    public bool IncludeAssets { get; set; } = true;
-
-    [JsonPropertyName("output_dir")]
-    public string? OutputDir { get; set; }
-
-    public AssetStudioInspectOptions ToInspectOptions()
-    {
-        return new AssetStudioInspectOptions
-        {
-            InputPath = InputPath,
-            AssetTypes = AssetTypes,
-            UnityVersion = UnityVersion,
-            FilterExcludeMode = FilterExcludeMode,
-            FilterWithRegex = FilterWithRegex,
-            FilterByName = FilterByName,
-            FilterByContainer = FilterByContainer,
-            FilterByPathIds = FilterByPathIds,
-            LoadAllAssets = LoadAllAssets,
-            IncludeAssets = IncludeAssets,
-            OutputDir = OutputDir,
-        };
-    }
-}
-
 internal static class NativeErrorCodes
 {
     public const string NullPointer = "null_pointer";
-    public const string InvalidJson = "invalid_json";
     public const string InvalidRequest = "invalid_request";
     public const string ContextNotFound = "context_not_found";
     public const string ContextLimit = "context_limit";
@@ -6097,619 +5181,4 @@ internal static class NativeErrorCodes
     public const string AssetNotFound = "asset_not_found";
     public const string UnsupportedKind = "unsupported_kind";
     public const string InternalError = "internal_error";
-}
-
-internal abstract class NativeResponseEnvelope
-{
-    [JsonPropertyName("abi_version")]
-    public int AbiVersion { get; set; } = NativeExports.NativeAbiVersionForEnvelope;
-
-    [JsonPropertyName("schema_version")]
-    public int SchemaVersion { get; set; } = NativeExports.NativeSchemaVersionForEnvelope;
-
-    [JsonPropertyName("error_code")]
-    public string? ErrorCode { get; set; }
-
-    [JsonPropertyName("error_message")]
-    public string? ErrorMessage { get; set; }
-}
-
-internal sealed class InspectResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("assets_file_count")]
-    public int AssetsFileCount { get; set; }
-
-    [JsonPropertyName("exportable_asset_count")]
-    public int ExportableAssetCount { get; set; }
-
-    [JsonPropertyName("unity_version")]
-    public string? UnityVersion { get; set; }
-
-    [JsonPropertyName("assets")]
-    public IReadOnlyCollection<AssetStudioAssetInfo> Assets { get; set; } = Array.Empty<AssetStudioAssetInfo>();
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("phase_ms")]
-    public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static InspectResponse Fail(string error, long durationMs = 0, string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Assets = Array.Empty<AssetStudioAssetInfo>(),
-        Warnings = Array.Empty<string>(),
-        PhaseMs = new Dictionary<string, long>(),
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class ContextOpenResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-
-    [JsonPropertyName("assets_file_count")]
-    public int AssetsFileCount { get; set; }
-
-    [JsonPropertyName("exportable_asset_count")]
-    public int ExportableAssetCount { get; set; }
-
-    [JsonPropertyName("unity_version")]
-    public string? UnityVersion { get; set; }
-
-    [JsonPropertyName("assets")]
-    public IReadOnlyCollection<AssetStudioAssetInfo> Assets { get; set; } = Array.Empty<AssetStudioAssetInfo>();
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("phase_ms")]
-    public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-
-    [JsonPropertyName("worker_id")]
-    public string? WorkerId { get; set; }
-
-    [JsonPropertyName("object_index_count")]
-    public int ObjectIndexCount { get; set; }
-
-    [JsonPropertyName("returned_asset_count")]
-    public int ReturnedAssetCount { get; set; }
-
-    [JsonPropertyName("has_more_assets")]
-    public bool HasMoreAssets { get; set; }
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static ContextOpenResponse Fail(string error, long durationMs = 0, string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Assets = Array.Empty<AssetStudioAssetInfo>(),
-        Warnings = Array.Empty<string>(),
-        PhaseMs = new Dictionary<string, long>(),
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class ContextListObjectsResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("context_id")]
-    public long ContextId { get; set; }
-
-    [JsonPropertyName("offset")]
-    public int Offset { get; set; }
-
-    [JsonPropertyName("limit")]
-    public int Limit { get; set; }
-
-    [JsonPropertyName("next_offset")]
-    public int? NextOffset { get; set; }
-
-    [JsonPropertyName("total_count")]
-    public int TotalCount { get; set; }
-
-    [JsonPropertyName("assets")]
-    public IReadOnlyCollection<AssetStudioAssetInfo> Assets { get; set; } = Array.Empty<AssetStudioAssetInfo>();
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static ContextListObjectsResponse Fail(string error, long durationMs = 0, string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Assets = Array.Empty<AssetStudioAssetInfo>(),
-        Warnings = Array.Empty<string>(),
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class ContextCloseResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static ContextCloseResponse Fail(string error, long durationMs = 0, string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Warnings = Array.Empty<string>(),
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class ObjectReadResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("asset")]
-    public AssetStudioAssetInfo? Asset { get; set; }
-
-    [JsonPropertyName("payload_kind")]
-    public string? PayloadKind { get; set; }
-
-    [JsonPropertyName("payload_len")]
-    public long PayloadLen { get; set; }
-
-    [JsonPropertyName("suggested_extension")]
-    public string? SuggestedExtension { get; set; }
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("phase_ms")]
-    public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static ObjectReadResponse Fail(string error, long durationMs = 0, string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Warnings = Array.Empty<string>(),
-        PhaseMs = new Dictionary<string, long>(),
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class ObjectReadBatchResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("reads")]
-    public IReadOnlyCollection<ObjectReadResponse> Reads { get; set; } = Array.Empty<ObjectReadResponse>();
-
-    [JsonPropertyName("warnings")]
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("phase_ms")]
-    public IReadOnlyDictionary<string, long> PhaseMs { get; set; } = new Dictionary<string, long>();
-
-    [JsonPropertyName("asset_type_counts")]
-    public IReadOnlyDictionary<string, int> AssetTypeCounts { get; set; } = new Dictionary<string, int>();
-
-    [JsonPropertyName("payload_kind_counts")]
-    public IReadOnlyDictionary<string, int> PayloadKindCounts { get; set; } = new Dictionary<string, int>();
-
-    [JsonPropertyName("payload_bytes_by_kind")]
-    public IReadOnlyDictionary<string, long> PayloadBytesByKind { get; set; } = new Dictionary<string, long>();
-
-    [JsonPropertyName("payload_len")]
-    public long PayloadLen { get; set; }
-
-    [JsonPropertyName("object_count")]
-    public int ObjectCount { get; set; }
-
-    [JsonPropertyName("payload_bundle_version")]
-    public int PayloadBundleVersion { get; set; }
-
-    [JsonPropertyName("payload_bundle_entry_count")]
-    public int PayloadBundleEntryCount { get; set; }
-
-    [JsonPropertyName("payload_bundle_bytes")]
-    public long PayloadBundleBytes { get; set; }
-
-    [JsonPropertyName("payload_data_bytes")]
-    public long PayloadDataBytes { get; set; }
-
-    [JsonPropertyName("failed_count")]
-    public int FailedCount { get; set; }
-
-    [JsonPropertyName("read_payload_ms")]
-    public long ReadPayloadMs { get; set; }
-
-    [JsonPropertyName("worker_id")]
-    public string? WorkerId { get; set; }
-
-    [JsonPropertyName("call_seq")]
-    public long CallSeq { get; set; }
-
-    [JsonPropertyName("object_index_count")]
-    public int ObjectIndexCount { get; set; }
-
-    [JsonPropertyName("phase_stats")]
-    public IReadOnlyDictionary<string, NativePhaseStats> PhaseStats { get; set; } = new Dictionary<string, NativePhaseStats>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    [JsonPropertyName("duration_ms")]
-    public long DurationMs { get; set; }
-
-    public static ObjectReadBatchResponse Fail(
-        string error,
-        long durationMs = 0,
-        string? workerId = null,
-        long callSeq = 0,
-        int objectIndexCount = 0,
-        IReadOnlyDictionary<string, long>? phaseMs = null,
-        string errorCode = NativeErrorCodes.InternalError) => new()
-    {
-        Success = false,
-        Reads = Array.Empty<ObjectReadResponse>(),
-        Warnings = Array.Empty<string>(),
-        PhaseMs = phaseMs ?? new Dictionary<string, long>(),
-        AssetTypeCounts = new Dictionary<string, int>(),
-        PayloadKindCounts = new Dictionary<string, int>(),
-        PayloadBytesByKind = new Dictionary<string, long>(),
-        WorkerId = workerId,
-        CallSeq = callSeq,
-        ObjectIndexCount = objectIndexCount,
-        Error = error,
-        ErrorCode = errorCode,
-        ErrorMessage = error,
-        DurationMs = durationMs,
-    };
-}
-
-internal sealed class NativePhaseStats
-{
-    [JsonPropertyName("p50_ms")]
-    public long P50Ms { get; set; }
-
-    [JsonPropertyName("p95_ms")]
-    public long P95Ms { get; set; }
-}
-
-internal sealed class VersionResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("adapter_version")]
-    public string? AdapterVersion { get; set; }
-
-    [JsonPropertyName("assetstudio_core_version")]
-    public string? AssetStudioCoreVersion { get; set; }
-
-    [JsonPropertyName("assetstudio_cli_version")]
-    public string? AssetStudioCliVersion { get; set; }
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    public static VersionResponse Fail(string error) => new()
-    {
-        Success = false,
-        Error = error,
-        ErrorCode = NativeErrorCodes.InternalError,
-        ErrorMessage = error,
-    };
-}
-
-internal sealed class CapabilitiesResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("ffi_mode")]
-    public string FfiMode { get; set; } = "core";
-
-    [JsonPropertyName("core_api_version")]
-    public string CoreApiVersion { get; set; } = "1.0";
-
-    [JsonPropertyName("payload_bundle_version")]
-    public int PayloadBundleVersion { get; set; }
-
-    [JsonPropertyName("object_table_abi_version")]
-    public int ObjectTableAbiVersion { get; set; }
-
-    [JsonPropertyName("object_table_into_abi_version")]
-    public int ObjectTableIntoAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_abi_version")]
-    public int ObjectReadAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_abi_version")]
-    public int ObjectReadBatchAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_handle_abi_version")]
-    public int ObjectReadBatchHandleAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_into_abi_version")]
-    public int ObjectReadBatchIntoAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_by_index_abi_version")]
-    public int ObjectReadBatchByIndexAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_direct_into_abi_version")]
-    public int ObjectReadBatchDirectIntoAbiVersion { get; set; }
-
-    [JsonPropertyName("object_read_batch_direct_retry_abi_version")]
-    public int ObjectReadBatchDirectRetryAbiVersion { get; set; }
-
-    [JsonPropertyName("object_lookup_abi_version")]
-    public int ObjectLookupAbiVersion { get; set; }
-
-    [JsonPropertyName("object_lookup_into_abi_version")]
-    public int ObjectLookupIntoAbiVersion { get; set; }
-
-    [JsonPropertyName("context_abi_version")]
-    public int ContextAbiVersion { get; set; }
-
-    [JsonPropertyName("supports_typed_object_table")]
-    public bool SupportsTypedObjectTable { get; set; }
-
-    [JsonPropertyName("supports_caller_provided_object_table_buffers")]
-    public bool SupportsCallerProvidedObjectTableBuffers { get; set; }
-
-    [JsonPropertyName("supports_indexed_asset_type_filter")]
-    public bool SupportsIndexedAssetTypeFilter { get; set; }
-
-    [JsonPropertyName("supports_typed_object_lookup")]
-    public bool SupportsTypedObjectLookup { get; set; }
-
-    [JsonPropertyName("supports_caller_provided_object_lookup_buffers")]
-    public bool SupportsCallerProvidedObjectLookupBuffers { get; set; }
-
-    [JsonPropertyName("supports_indexed_exact_object_lookup")]
-    public bool SupportsIndexedExactObjectLookup { get; set; }
-
-    [JsonPropertyName("supports_object_lookup_contains")]
-    public bool SupportsObjectLookupContains { get; set; }
-
-    [JsonPropertyName("supports_typed_object_read")]
-    public bool SupportsTypedObjectRead { get; set; }
-
-    [JsonPropertyName("supports_typed_object_read_batch")]
-    public bool SupportsTypedObjectReadBatch { get; set; }
-
-    [JsonPropertyName("supports_core_object_read_batch")]
-    public bool SupportsCoreObjectReadBatch { get; set; }
-
-    [JsonPropertyName("supports_typed_object_read_batch_handle")]
-    public bool SupportsTypedObjectReadBatchHandle { get; set; }
-
-    [JsonPropertyName("supports_result_handle")]
-    public bool SupportsResultHandle { get; set; }
-
-    [JsonPropertyName("supports_streaming_native_batch_payload")]
-    public bool SupportsStreamingNativeBatchPayload { get; set; }
-
-    [JsonPropertyName("supports_native_streaming_payload")]
-    public bool SupportsNativeStreamingPayload { get; set; }
-
-    [JsonPropertyName("native_streaming_payload_kinds")]
-    public IReadOnlyCollection<string> NativeStreamingPayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("direct_buffer_write_payload_kinds")]
-    public IReadOnlyCollection<string> DirectBufferWritePayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("source_streaming_payload_kinds")]
-    public IReadOnlyCollection<string> SourceStreamingPayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("resident_buffer_payload_kinds")]
-    public IReadOnlyCollection<string> ResidentBufferPayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("generated_streaming_payload_kinds")]
-    public IReadOnlyCollection<string> GeneratedStreamingPayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("temp_file_intermediate_payload_kinds")]
-    public IReadOnlyCollection<string> TempFileIntermediatePayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("managed_intermediate_payload_kinds")]
-    public IReadOnlyCollection<string> ManagedIntermediatePayloadKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("supports_estimated_native_batch_capacity")]
-    public bool SupportsEstimatedNativeBatchCapacity { get; set; }
-
-    [JsonPropertyName("supports_estimated_object_payload_capacity")]
-    public bool SupportsEstimatedObjectPayloadCapacity { get; set; }
-
-    [JsonPropertyName("supports_payload_kind_capacity_hints")]
-    public bool SupportsPayloadKindCapacityHints { get; set; }
-
-    [JsonPropertyName("supports_caller_provided_read_buffers")]
-    public bool SupportsCallerProvidedReadBuffers { get; set; }
-
-    [JsonPropertyName("supports_direct_object_read_into")]
-    public bool SupportsDirectObjectReadInto { get; set; }
-
-    [JsonPropertyName("supports_direct_object_read_retry")]
-    public bool SupportsDirectObjectReadRetry { get; set; }
-
-    [JsonPropertyName("supports_object_read_by_index")]
-    public bool SupportsObjectReadByIndex { get; set; }
-
-    [JsonPropertyName("supports_cached_object_read_size_v4")]
-    public bool SupportsCachedObjectReadSizeV4 { get; set; }
-
-    [JsonPropertyName("max_cached_object_read_batch_payload_bytes")]
-    public long MaxCachedObjectReadBatchPayloadBytes { get; set; }
-
-    [JsonPropertyName("supports_typed_item_error_messages")]
-    public bool SupportsTypedItemErrorMessages { get; set; }
-
-    [JsonPropertyName("supports_typed_context")]
-    public bool SupportsTypedContext { get; set; }
-
-    [JsonPropertyName("supports_native_dependency_resolver")]
-    public bool SupportsNativeDependencyResolver { get; set; }
-
-    [JsonPropertyName("supports_abi_layout")]
-    public bool SupportsAbiLayout { get; set; }
-
-    [JsonPropertyName("abi_layout_version")]
-    public int AbiLayoutVersion { get; set; }
-
-    [JsonPropertyName("struct_sizes")]
-    public IReadOnlyDictionary<string, int> StructSizes { get; set; } = new Dictionary<string, int>();
-
-    [JsonPropertyName("max_native_utf8_bytes")]
-    public int MaxNativeUtf8Bytes { get; set; }
-
-    [JsonPropertyName("max_object_read_batch_count")]
-    public int MaxObjectReadBatchCount { get; set; }
-
-    [JsonPropertyName("max_object_table_page_limit")]
-    public int MaxObjectTablePageLimit { get; set; }
-
-    [JsonPropertyName("max_object_read_batch_payload_bytes")]
-    public long MaxObjectReadBatchPayloadBytes { get; set; }
-
-    [JsonPropertyName("texture2d_decoder_native_dependency")]
-    public string? Texture2DDecoderNativeDependency { get; set; }
-
-    [JsonPropertyName("texture2d_decoder_native_candidate_paths")]
-    public IReadOnlyCollection<string> Texture2DDecoderNativeCandidatePaths { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("max_active_contexts")]
-    public int MaxActiveContexts { get; set; }
-
-    [JsonPropertyName("max_concurrent_operations")]
-    public int MaxConcurrentOperations { get; set; }
-
-    [JsonPropertyName("supports_multiple_contexts")]
-    public bool SupportsMultipleContexts { get; set; }
-
-    [JsonPropertyName("supports_concurrent_operations")]
-    public bool SupportsConcurrentOperations { get; set; }
-
-    [JsonPropertyName("supports_context_lifetime_guards")]
-    public bool SupportsContextLifetimeGuards { get; set; }
-
-    [JsonPropertyName("context_lifetime_abi_version")]
-    public int ContextLifetimeAbiVersion { get; set; }
-
-    [JsonPropertyName("legacy_static_engine")]
-    public bool LegacyStaticEngine { get; set; }
-
-    [JsonPropertyName("native_console_capture")]
-    public bool NativeConsoleCapture { get; set; }
-
-    [JsonPropertyName("object_kinds")]
-    public IReadOnlyCollection<string> ObjectKinds { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("image_formats")]
-    public IReadOnlyCollection<string> ImageFormats { get; set; } = Array.Empty<string>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    public static CapabilitiesResponse Fail(string error) => new()
-    {
-        Success = false,
-        Error = error,
-        ErrorCode = NativeErrorCodes.InternalError,
-        ErrorMessage = error,
-    };
-}
-
-internal sealed class AbiLayoutResponse : NativeResponseEnvelope
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("abi_layout_version")]
-    public int AbiLayoutVersion { get; set; }
-
-    [JsonPropertyName("struct_sizes")]
-    public IReadOnlyDictionary<string, int> StructSizes { get; set; } = new Dictionary<string, int>();
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-
-    public static AbiLayoutResponse Fail(string error) => new()
-    {
-        Success = false,
-        Error = error,
-        ErrorCode = NativeErrorCodes.InternalError,
-        ErrorMessage = error,
-    };
-}
-
-    [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-    [JsonSerializable(typeof(ContextCloseRequest))]
-    [JsonSerializable(typeof(ContextListObjectsRequest))]
-    [JsonSerializable(typeof(ContextReadObjectRequest))]
-    [JsonSerializable(typeof(ContextReadObjectsRequest))]
-    [JsonSerializable(typeof(ContextReadObjectItemRequest))]
-    [JsonSerializable(typeof(ContextOpenResponse))]
-    [JsonSerializable(typeof(ContextCloseResponse))]
-    [JsonSerializable(typeof(ContextListObjectsResponse))]
-    [JsonSerializable(typeof(ObjectReadResponse))]
-[JsonSerializable(typeof(ObjectReadBatchResponse))]
-[JsonSerializable(typeof(NativePhaseStats))]
-[JsonSerializable(typeof(InspectRequest))]
-[JsonSerializable(typeof(InspectResponse))]
-[JsonSerializable(typeof(VersionResponse))]
-[JsonSerializable(typeof(CapabilitiesResponse))]
-[JsonSerializable(typeof(AbiLayoutResponse))]
-[JsonSerializable(typeof(Dictionary<string, long>))]
-[JsonSerializable(typeof(Dictionary<string, int>))]
-[JsonSerializable(typeof(Dictionary<string, NativePhaseStats>))]
-internal partial class NativeJsonContext : JsonSerializerContext
-{
 }

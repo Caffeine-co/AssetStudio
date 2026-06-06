@@ -26,33 +26,6 @@ def summarize(samples):
     }
 
 
-def list_all_json(native, context_id, page_size, asset_types):
-    offset = 0
-    count = 0
-    checksum = 0
-    native_ms = 0
-    while True:
-        request = {
-            "context_id": context_id,
-            "offset": offset,
-            "limit": page_size,
-        }
-        if asset_types:
-            request["asset_types"] = asset_types
-        rc, response = native.call_json(native.lib.haruki_assetstudio_context_list_objects, request)
-        if rc != 0 or not response.get("success"):
-            raise RuntimeError(f"JSON list failed rc={rc} response={response}")
-        assets = response.get("assets") or []
-        for asset in assets:
-            checksum ^= int(asset.get("path_id") or 0)
-        count += len(assets)
-        native_ms += response.get("duration_ms") or 0
-        next_offset = response.get("next_offset")
-        if next_offset is None:
-            return count, checksum, native_ms
-        offset = next_offset
-
-
 def list_all_typed(native, context_id, page_size, asset_types_csv):
     offset = 0
     count = 0
@@ -89,6 +62,7 @@ def list_all_typed_raw(native, context_id, page_size, asset_types_csv):
         asset_type_ptr = (ctypes.c_ubyte * asset_type_len).from_buffer_copy(asset_type_bytes)
     while True:
         request = NativeObjectListRequest(
+            struct_size=ctypes.sizeof(NativeObjectListRequest),
             context_id=context_id,
             offset=offset,
             limit=page_size,
@@ -113,8 +87,8 @@ def list_all_typed_raw(native, context_id, page_size, asset_types_csv):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare JSON list and typed object table list FFI paths")
-    parser.add_argument("library", help="Path to HarukiAssetStudioNative shared library")
+    parser = argparse.ArgumentParser(description="Compare typed object table list FFI paths")
+    parser.add_argument("library", help="Path to HarukiAssetStudioFFI shared library")
     parser.add_argument("input_path", help="Unity asset bundle/file/directory input path")
     parser.add_argument("--unity-version", default="2022.3.62f1")
     parser.add_argument("--page-size", type=int, default=4096)
@@ -128,30 +102,19 @@ def main():
     opened_context = None
 
     try:
-        rc, opened = native.call_json(native.lib.haruki_assetstudio_context_open, {
-            "input_path": args.input_path,
-            "unity_version": args.unity_version,
-            "include_assets": False,
-        })
-        if rc != 0 or not opened.get("success"):
-            raise RuntimeError(f"open failed rc={rc} response={opened}")
-        opened_context = opened.get("context_id")
+        rc, opened, _ = native.open_v2(args.input_path, args.unity_version)
+        if rc != 0 or opened.status != 0:
+            raise RuntimeError(f"open_v2 failed rc={rc} status={opened.status} error={opened.error_code}")
+        opened_context = opened.context_id
 
-        json_samples = []
         typed_raw_samples = []
         typed_samples = []
-        json_native_ms = []
         typed_raw_native_ms = []
         typed_native_ms = []
         expected_count = None
         expected_checksum = None
 
         for _ in range(args.rounds):
-            start = time.perf_counter()
-            json_count, json_checksum, json_ms = list_all_json(native, opened_context, args.page_size, asset_types)
-            json_samples.append((time.perf_counter() - start) * 1000)
-            json_native_ms.append(json_ms)
-
             start = time.perf_counter()
             typed_raw_count, typed_raw_checksum, typed_raw_ms = list_all_typed_raw(
                 native,
@@ -168,16 +131,16 @@ def main():
             typed_native_ms.append(typed_ms)
 
             if expected_count is None:
-                expected_count = json_count
-                expected_checksum = json_checksum
+                expected_count = typed_raw_count
+                expected_checksum = typed_raw_checksum
             if typed_count != expected_count or typed_checksum != expected_checksum:
                 raise AssertionError(
-                    f"typed mismatch count/checksum: json=({expected_count},{expected_checksum}) "
+                    f"typed mismatch count/checksum: expected=({expected_count},{expected_checksum}) "
                     f"typed=({typed_count},{typed_checksum})"
                 )
             if typed_raw_count != expected_count or typed_raw_checksum != expected_checksum:
                 raise AssertionError(
-                    f"typed raw mismatch count/checksum: json=({expected_count},{expected_checksum}) "
+                    f"typed raw mismatch count/checksum: expected=({expected_count},{expected_checksum}) "
                     f"typed_raw=({typed_raw_count},{typed_raw_checksum})"
                 )
 
@@ -187,19 +150,16 @@ def main():
             "page_size": args.page_size,
             "rounds": args.rounds,
             "asset_types": asset_types,
-            "json_wall": summarize(json_samples),
             "typed_raw_wall": summarize(typed_raw_samples),
             "typed_wall": summarize(typed_samples),
-            "json_native_duration_ms": summarize(json_native_ms),
             "typed_raw_native_duration_ms": summarize(typed_raw_native_ms),
             "typed_native_duration_ms": summarize(typed_native_ms),
-            "typed_raw_vs_json_wall_speedup": round(statistics.mean(json_samples) / statistics.mean(typed_raw_samples), 3),
-            "typed_vs_json_wall_speedup": round(statistics.mean(json_samples) / statistics.mean(typed_samples), 3),
+            "typed_vs_raw_wall_ratio": round(statistics.mean(typed_samples) / statistics.mean(typed_raw_samples), 3),
         }
         print(json.dumps(result, separators=(",", ":")))
     finally:
         if opened_context:
-            native.call_json(native.lib.haruki_assetstudio_context_close, {"context_id": opened_context})
+            native.close_v2(opened_context)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
     <PropertyGroup>
         <OutputType>Library</OutputType>
         <TargetFramework>net9.0</TargetFramework>
-        <AssemblyName>HarukiAssetStudioNative</AssemblyName>
+        <AssemblyName>HarukiAssetStudioFFI</AssemblyName>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <PublishAot>true</PublishAot>
@@ -10,7 +10,6 @@
         <SelfContained>true</SelfContained>
         <InvariantGlobalization>false</InvariantGlobalization>
         <IsAotCompatible>true</IsAotCompatible>
-        <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
         <!-- Source-level NativeAOT warnings in the FFI path are fixed or documented with
              targeted suppressions. The remaining IL2026/IL2104/IL3053 output is
              third-party/BCL trim summary noise from legacy AssetStudio dependencies

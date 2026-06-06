@@ -2,7 +2,9 @@
 using SixLabors.ImageSharp.Formats.Bmp;
 using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.PixelFormats;
 using System;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -100,6 +102,8 @@ namespace AssetStudio
 
     public static class ImageExtensions
     {
+        private static ReadOnlySpan<byte> RgbaIrMagic => "HARUKI_RGBAIR_V1"u8;
+
         public static void WriteToStream(this Image image, Stream stream, ImageFormat imageFormat)
         {
             ImageSharpNativeAotGuard.Run(() =>
@@ -133,6 +137,49 @@ namespace AssetStudio
                             Quality = 50
                         });
                         break;
+                    case ImageFormat.RawRgba:
+                        if (image is Image<Bgra32> bgra)
+                        {
+                            bgra.WriteRgbaIrToStream(stream);
+                            break;
+                        }
+                        throw new NotSupportedException("raw_rgba export requires Image<Bgra32>");
+                }
+            });
+        }
+
+        public static void WriteRgbaIrToStream(this Image<Bgra32> image, Stream stream)
+        {
+            const int bytesPerPixel = 4;
+            const int headerSize = 36;
+            var width = image.Width;
+            var height = image.Height;
+            var stride = checked(width * bytesPerPixel);
+            Span<byte> header = stackalloc byte[headerSize];
+            RgbaIrMagic.CopyTo(header);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(16, sizeof(int)), width);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(20, sizeof(int)), height);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(24, sizeof(int)), stride);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(28, sizeof(int)), 1);
+            BinaryPrimitives.WriteInt32LittleEndian(header.Slice(32, sizeof(int)), 0);
+            stream.Write(header);
+
+            var rowBytes = new byte[stride];
+            image.ProcessPixelRows(accessor =>
+            {
+                for (var y = 0; y < height; y++)
+                {
+                    var source = accessor.GetRowSpan(y);
+                    for (var x = 0; x < width; x++)
+                    {
+                        var pixel = source[x];
+                        var offset = x * bytesPerPixel;
+                        rowBytes[offset] = pixel.R;
+                        rowBytes[offset + 1] = pixel.G;
+                        rowBytes[offset + 2] = pixel.B;
+                        rowBytes[offset + 3] = pixel.A;
+                    }
+                    stream.Write(rowBytes);
                 }
             });
         }

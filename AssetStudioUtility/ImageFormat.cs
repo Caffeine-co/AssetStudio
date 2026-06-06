@@ -7,5 +7,6 @@
         Bmp,
         Tga,
         Webp,
+        RawRgba,
     }
 }

@@ -13,23 +13,30 @@
 extern "C" {
 #endif
 
+#define HARUKI_ASSETSTUDIO_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_SCHEMA_VERSION 2
+#define HARUKI_ASSETSTUDIO_LAYOUT_VERSION 2
+#define HARUKI_ASSETSTUDIO_CONTEXT_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_LIMITS_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_ABI_VERSION 3
+#define HARUKI_ASSETSTUDIO_OBJECT_TABLE_INTO_ABI_VERSION 3
+#define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_INTO_ABI_VERSION 1
+#define HARUKI_ASSETSTUDIO_OBJECT_READ_BATCH_DIRECT_RETRY_ABI_VERSION 1
+
 /*
  * Stable return codes used by the NativeAOT FFI.
  *
- * Every function that returns a response JSON writes a UTF-8, null-terminated
- * string allocated by the library. Release it with haruki_assetstudio_free_string.
- * Payload buffers returned by legacy read calls must be released with
- * haruki_assetstudio_free_buffer. Typed batch read v3 buffers are owned by a
- * result handle and must be released with haruki_assetstudio_result_free.
+ * The public data path is typed structs only. Caller-provided buffers remain
+ * caller-owned; library-owned list buffers are released with
+ * haruki_assetstudio_free_buffer; typed batch read v3/v7 buffers may be owned
+ * by a result handle and must be released with haruki_assetstudio_result_free.
+ * haruki_assetstudio_free_string is retained only as an ABI compatibility
+ * helper for callers that still resolve the symbol.
  *
- * Successful response envelopes include:
- *   success, abi_version, schema_version, warnings, duration_ms
- *
- * Failed response envelopes include:
- *   success=false, error, error_code, error_message, abi_version, schema_version
- *
- * haruki_assetstudio_capabilities reports ffi_mode="core". legacy_static_engine
- * is false, max_active_contexts reports the active context limit, and
+ * haruki_assetstudio_capabilities_v2 reports the typed FFI feature flags.
+ * legacy_static_engine is false, max_active_contexts reports the active
+ * context limit through haruki_assetstudio_limits_v1, and
  * per-context lifetime guards reject close/read races with a retryable
  * context-busy status. Open/list/lookup/read/close calls can run across
  * different contexts; narrow dependency locks may still be used internally.
@@ -41,7 +48,7 @@ extern "C" {
  * HARUKI_ASSET_STUDIO_NATIVE_LIBRARY_PATH file/directory/path-list override.
  * Capability arrays split payload native-ness: source_streaming/native_streaming
  * kinds are raw/audio_raw/video_raw; resident_buffer kinds are parsed object
- * arrays written directly; generated_streaming kinds are encoder/text/JSON/OBJ
+ * arrays written directly; generated_streaming kinds are encoder/text/json/obj
  * output streamed to the caller/native buffer. shader_text is mixed: simple
  * script shaders write original bytes after the header, while compressed or
  * subprogram shaders generate converted text. Texture array bundles use a
@@ -186,6 +193,70 @@ typedef struct haruki_assetstudio_limits_response {
     int32_t flags;
     int32_t reserved;
 } haruki_assetstudio_limits_response;
+
+typedef struct haruki_assetstudio_capabilities_response {
+    int32_t struct_size;
+    int32_t abi_version;
+    int32_t schema_version;
+    int32_t status;
+    int32_t error_code;
+    int32_t core_api_version_major;
+    int32_t core_api_version_minor;
+    int32_t context_abi_version;
+    int32_t object_table_abi_version;
+    int32_t object_table_into_abi_version;
+    int32_t object_lookup_abi_version;
+    int32_t object_lookup_into_abi_version;
+    int32_t object_read_abi_version;
+    int32_t object_read_batch_abi_version;
+    int32_t object_read_batch_handle_abi_version;
+    int32_t object_read_batch_into_abi_version;
+    int32_t object_read_batch_by_index_abi_version;
+    int32_t object_read_batch_direct_into_abi_version;
+    int32_t object_read_batch_direct_retry_abi_version;
+    int32_t supports_typed_object_table;
+    int32_t supports_caller_provided_object_table_buffers;
+    int32_t supports_typed_object_lookup;
+    int32_t supports_caller_provided_object_lookup_buffers;
+    int32_t supports_typed_object_read;
+    int32_t supports_typed_object_read_batch;
+    int32_t supports_result_handle;
+    int32_t supports_direct_object_read_retry;
+    int32_t supports_typed_context;
+    int32_t supports_native_dependency_resolver;
+    int32_t supports_abi_layout;
+    int32_t supports_multiple_contexts;
+    int32_t supports_concurrent_operations;
+    int32_t supports_context_lifetime_guards;
+    int32_t native_console_capture;
+    int32_t flags;
+    int32_t reserved;
+} haruki_assetstudio_capabilities_response;
+
+typedef struct haruki_assetstudio_abi_layout_response {
+    int32_t struct_size;
+    int32_t abi_version;
+    int32_t schema_version;
+    int32_t status;
+    int32_t error_code;
+    int32_t layout_version;
+    int32_t context_open_request;
+    int32_t context_open_response;
+    int32_t context_close_request;
+    int32_t context_close_response;
+    int32_t limits_response;
+    int32_t capabilities_response;
+    int32_t object_list_request;
+    int32_t object_list_into_request_v3;
+    int32_t object_table;
+    int32_t asset_object;
+    int32_t object_read_item_request;
+    int32_t object_read_batch_into_request_v4;
+    int32_t object_read_item_response_v4;
+    int32_t object_read_batch_retry_response_v7;
+    int32_t flags;
+    int32_t reserved;
+} haruki_assetstudio_abi_layout_response;
 
 typedef struct haruki_assetstudio_object_list_request {
     int32_t struct_size;
@@ -563,18 +634,16 @@ typedef struct haruki_assetstudio_object_read_batch_retry_response_v7 {
  *   Release table.buffer once with haruki_assetstudio_free_buffer.
  */
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_version(char **response_json);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_capabilities(char **response_json);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_abi_layout(char **response_json);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_capabilities_v2(
+    haruki_assetstudio_capabilities_response *response);
+HARUKI_ASSETSTUDIO_API int haruki_assetstudio_abi_layout_v2(
+    haruki_assetstudio_abi_layout_response *response);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_limits_v1(
     haruki_assetstudio_limits_response *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_inspect(const char *request_json, char **response_json);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_open(const char *request_json, char **response_json);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_open_v2(
     const haruki_assetstudio_context_open_request *request,
     haruki_assetstudio_context_open_response *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects(const char *request_json, char **response_json);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_list_objects_v2(
     const haruki_assetstudio_object_list_request *request,
     haruki_assetstudio_object_table *response);
@@ -607,16 +676,9 @@ HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_size_v2(
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_lookup_objects_into_v2(
     const haruki_assetstudio_object_lookup_into_request_v2 *request,
     haruki_assetstudio_object_table *response);
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_close(const char *request_json, char **response_json);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_close_v2(
     const haruki_assetstudio_context_close_request *request,
     haruki_assetstudio_context_close_response *response);
-
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_object(
-    const char *request_json,
-    char **response_json,
-    uint8_t **payload_ptr,
-    int64_t *payload_len);
 
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_object_v2(
     const haruki_assetstudio_object_read_request *request,
@@ -699,31 +761,9 @@ HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects_by_index_dire
     const haruki_assetstudio_object_read_batch_by_index_into_request_v5 *request,
     haruki_assetstudio_object_read_batch_retry_response_v7 *response);
 
-HARUKI_ASSETSTUDIO_API int haruki_assetstudio_context_read_objects(
-    const char *request_json,
-    char **response_json,
-    uint8_t **payload_ptr,
-    int64_t *payload_len);
-
 HARUKI_ASSETSTUDIO_API void haruki_assetstudio_free_string(char *value);
 HARUKI_ASSETSTUDIO_API void haruki_assetstudio_free_buffer(uint8_t *value);
 HARUKI_ASSETSTUDIO_API int haruki_assetstudio_result_free(int64_t result_handle);
-
-/*
- * Batch payload bundle v2 layout, all integer fields little-endian:
- *
- *   u32 magic               "HAPB" as 0x42504148
- *   u16 version             2
- *   u16 header_len          20
- *   i32 entry_count
- *   i64 payload_data_bytes
- *
- * Repeated entry_count times:
- *   i32 name_len
- *   i64 payload_len
- *   u8[name_len] UTF-8 entry name, currently the path_id as decimal text
- *   u8[payload_len] payload bytes
- */
 
 #ifdef __cplusplus
 }

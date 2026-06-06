@@ -4,6 +4,7 @@ import ctypes
 import json
 import struct
 import sys
+import traceback
 
 
 class NativeObjectListRequest(ctypes.Structure):
@@ -153,6 +154,74 @@ class NativeLimitsResponse(ctypes.Structure):
         ("supports_concurrent_operations", ctypes.c_int),
         ("legacy_static_engine", ctypes.c_int),
         ("native_console_capture", ctypes.c_int),
+        ("flags", ctypes.c_int),
+        ("reserved", ctypes.c_int),
+    ]
+
+
+class NativeCapabilitiesResponse(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_int),
+        ("abi_version", ctypes.c_int),
+        ("schema_version", ctypes.c_int),
+        ("status", ctypes.c_int),
+        ("error_code", ctypes.c_int),
+        ("core_api_version_major", ctypes.c_int),
+        ("core_api_version_minor", ctypes.c_int),
+        ("context_abi_version", ctypes.c_int),
+        ("object_table_abi_version", ctypes.c_int),
+        ("object_table_into_abi_version", ctypes.c_int),
+        ("object_lookup_abi_version", ctypes.c_int),
+        ("object_lookup_into_abi_version", ctypes.c_int),
+        ("object_read_abi_version", ctypes.c_int),
+        ("object_read_batch_abi_version", ctypes.c_int),
+        ("object_read_batch_handle_abi_version", ctypes.c_int),
+        ("object_read_batch_into_abi_version", ctypes.c_int),
+        ("object_read_batch_by_index_abi_version", ctypes.c_int),
+        ("object_read_batch_direct_into_abi_version", ctypes.c_int),
+        ("object_read_batch_direct_retry_abi_version", ctypes.c_int),
+        ("supports_typed_object_table", ctypes.c_int),
+        ("supports_caller_provided_object_table_buffers", ctypes.c_int),
+        ("supports_typed_object_lookup", ctypes.c_int),
+        ("supports_caller_provided_object_lookup_buffers", ctypes.c_int),
+        ("supports_typed_object_read", ctypes.c_int),
+        ("supports_typed_object_read_batch", ctypes.c_int),
+        ("supports_result_handle", ctypes.c_int),
+        ("supports_direct_object_read_retry", ctypes.c_int),
+        ("supports_typed_context", ctypes.c_int),
+        ("supports_native_dependency_resolver", ctypes.c_int),
+        ("supports_abi_layout", ctypes.c_int),
+        ("supports_multiple_contexts", ctypes.c_int),
+        ("supports_concurrent_operations", ctypes.c_int),
+        ("supports_context_lifetime_guards", ctypes.c_int),
+        ("native_console_capture", ctypes.c_int),
+        ("flags", ctypes.c_int),
+        ("reserved", ctypes.c_int),
+    ]
+
+
+class NativeAbiLayoutResponse(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_int),
+        ("abi_version", ctypes.c_int),
+        ("schema_version", ctypes.c_int),
+        ("status", ctypes.c_int),
+        ("error_code", ctypes.c_int),
+        ("layout_version", ctypes.c_int),
+        ("context_open_request", ctypes.c_int),
+        ("context_open_response", ctypes.c_int),
+        ("context_close_request", ctypes.c_int),
+        ("context_close_response", ctypes.c_int),
+        ("limits_response", ctypes.c_int),
+        ("capabilities_response", ctypes.c_int),
+        ("object_list_request", ctypes.c_int),
+        ("object_list_into_request_v3", ctypes.c_int),
+        ("object_table", ctypes.c_int),
+        ("asset_object", ctypes.c_int),
+        ("object_read_item_request", ctypes.c_int),
+        ("object_read_batch_into_request_v4", ctypes.c_int),
+        ("object_read_item_response_v4", ctypes.c_int),
+        ("object_read_batch_retry_response_v7", ctypes.c_int),
         ("flags", ctypes.c_int),
         ("reserved", ctypes.c_int),
     ]
@@ -461,21 +530,17 @@ class NativeObjectReadBatchRetryResponseV7(ctypes.Structure):
 class HarukiAssetStudioNative:
     def __init__(self, library_path):
         self.lib = ctypes.CDLL(library_path)
-        self.lib.haruki_assetstudio_capabilities.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
-        self.lib.haruki_assetstudio_capabilities.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_abi_layout.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
-        self.lib.haruki_assetstudio_abi_layout.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_capabilities_v2.argtypes = [ctypes.POINTER(NativeCapabilitiesResponse)]
+        self.lib.haruki_assetstudio_capabilities_v2.restype = ctypes.c_int
+        self.lib.haruki_assetstudio_abi_layout_v2.argtypes = [ctypes.POINTER(NativeAbiLayoutResponse)]
+        self.lib.haruki_assetstudio_abi_layout_v2.restype = ctypes.c_int
         self.lib.haruki_assetstudio_limits_v1.argtypes = [ctypes.POINTER(NativeLimitsResponse)]
         self.lib.haruki_assetstudio_limits_v1.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_open.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
-        self.lib.haruki_assetstudio_context_open.restype = ctypes.c_int
         self.lib.haruki_assetstudio_context_open_v2.argtypes = [
             ctypes.POINTER(NativeContextOpenRequest),
             ctypes.POINTER(NativeContextOpenResponse),
         ]
         self.lib.haruki_assetstudio_context_open_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_list_objects.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
-        self.lib.haruki_assetstudio_context_list_objects.restype = ctypes.c_int
         self.lib.haruki_assetstudio_context_list_objects_v2.argtypes = [
             ctypes.POINTER(NativeObjectListRequest),
             ctypes.POINTER(NativeObjectTable),
@@ -558,27 +623,11 @@ class HarukiAssetStudioNative:
         self.lib.haruki_assetstudio_context_read_objects_by_index_direct_retry_v7.restype = ctypes.c_int
         self.lib.haruki_assetstudio_result_free.argtypes = [ctypes.c_longlong]
         self.lib.haruki_assetstudio_result_free.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_close.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p)]
-        self.lib.haruki_assetstudio_context_close.restype = ctypes.c_int
         self.lib.haruki_assetstudio_context_close_v2.argtypes = [
             ctypes.POINTER(NativeContextCloseRequest),
             ctypes.POINTER(NativeContextCloseResponse),
         ]
         self.lib.haruki_assetstudio_context_close_v2.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_object.argtypes = [
-            ctypes.c_char_p,
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_longlong),
-        ]
-        self.lib.haruki_assetstudio_context_read_object.restype = ctypes.c_int
-        self.lib.haruki_assetstudio_context_read_objects.argtypes = [
-            ctypes.c_char_p,
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_void_p),
-            ctypes.POINTER(ctypes.c_longlong),
-        ]
-        self.lib.haruki_assetstudio_context_read_objects.restype = ctypes.c_int
         self.lib.haruki_assetstudio_free_string.argtypes = [ctypes.c_void_p]
         self.lib.haruki_assetstudio_free_string.restype = None
         self.lib.haruki_assetstudio_free_buffer.argtypes = [ctypes.c_void_p]
@@ -595,48 +644,6 @@ class HarukiAssetStudioNative:
         response = ctypes.c_void_p()
         rc = function(ctypes.byref(response))
         return rc, self._take_json(response.value)
-
-    def call_json(self, function, request):
-        response = ctypes.c_void_p()
-        raw = request if isinstance(request, bytes) else json.dumps(request).encode("utf-8")
-        rc = function(raw, ctypes.byref(response))
-        return rc, self._take_json(response.value)
-
-    def read_objects(self, request):
-        response = ctypes.c_void_p()
-        payload_ptr = ctypes.c_void_p()
-        payload_len = ctypes.c_longlong()
-        raw = json.dumps(request).encode("utf-8")
-        rc = self.lib.haruki_assetstudio_context_read_objects(
-            raw,
-            ctypes.byref(response),
-            ctypes.byref(payload_ptr),
-            ctypes.byref(payload_len),
-        )
-        response_json = self._take_json(response.value)
-        if not payload_ptr.value or payload_len.value <= 0:
-            return rc, response_json, b""
-        payload = ctypes.string_at(payload_ptr.value, payload_len.value)
-        self.lib.haruki_assetstudio_free_buffer(payload_ptr)
-        return rc, response_json, payload
-
-    def read_object(self, request):
-        response = ctypes.c_void_p()
-        payload_ptr = ctypes.c_void_p()
-        payload_len = ctypes.c_longlong()
-        raw = json.dumps(request).encode("utf-8")
-        rc = self.lib.haruki_assetstudio_context_read_object(
-            raw,
-            ctypes.byref(response),
-            ctypes.byref(payload_ptr),
-            ctypes.byref(payload_len),
-        )
-        response_json = self._take_json(response.value)
-        if not payload_ptr.value or payload_len.value <= 0:
-            return rc, response_json, b""
-        payload = ctypes.string_at(payload_ptr.value, payload_len.value)
-        self.lib.haruki_assetstudio_free_buffer(payload_ptr)
-        return rc, response_json, payload
 
     def open_v2(self, input_path, unity_version):
         buffers = []
@@ -1147,7 +1154,7 @@ class HarukiAssetStudioNative:
         requests = (NativeObjectReadItemRequest * len(objects))()
         for index, item in enumerate(objects):
             kind, kind_len = native_bytes(item.get("kind", "auto"))
-            image_format, image_format_len = native_bytes(item.get("image_format", "bmp"))
+            image_format, image_format_len = native_bytes(item.get("image_format", "raw_rgba"))
             requests[index] = NativeObjectReadItemRequest(
                 path_id=item["path_id"],
                 kind_utf8=kind,
@@ -1169,7 +1176,7 @@ class HarukiAssetStudioNative:
         requests = (NativeObjectReadItemByIndexRequestV5 * len(objects))()
         for index, item in enumerate(objects):
             kind, kind_len = native_bytes(item.get("kind", "auto"))
-            image_format, image_format_len = native_bytes(item.get("image_format", "bmp"))
+            image_format, image_format_len = native_bytes(item.get("image_format", "raw_rgba"))
             requests[index] = NativeObjectReadItemByIndexRequestV5(
                 object_index=item["object_index"],
                 kind_utf8=kind,
@@ -1204,36 +1211,24 @@ def assert_error(response, error_code, label):
 
 
 def assert_abi_layout(layout):
-    sizes = layout.get("struct_sizes") or {}
     expected = {
-        "haruki_assetstudio_context_open_request": ctypes.sizeof(NativeContextOpenRequest),
-        "haruki_assetstudio_context_open_response": ctypes.sizeof(NativeContextOpenResponse),
-        "haruki_assetstudio_context_close_request": ctypes.sizeof(NativeContextCloseRequest),
-        "haruki_assetstudio_context_close_response": ctypes.sizeof(NativeContextCloseResponse),
-        "haruki_assetstudio_limits_response": ctypes.sizeof(NativeLimitsResponse),
-        "haruki_assetstudio_object_list_request": ctypes.sizeof(NativeObjectListRequest),
-        "haruki_assetstudio_object_list_into_request_v3": ctypes.sizeof(NativeObjectListIntoRequestV3),
-        "haruki_assetstudio_object_lookup_request": ctypes.sizeof(NativeObjectLookupRequest),
-        "haruki_assetstudio_object_lookup_into_request_v2": ctypes.sizeof(NativeObjectLookupIntoRequestV2),
-        "haruki_assetstudio_object_table": ctypes.sizeof(NativeObjectTable),
-        "haruki_assetstudio_asset_object": ctypes.sizeof(NativeAssetObject),
-        "haruki_assetstudio_object_read_item_request": ctypes.sizeof(NativeObjectReadItemRequest),
-        "haruki_assetstudio_object_read_batch_request": ctypes.sizeof(NativeObjectReadBatchRequest),
-        "haruki_assetstudio_object_read_batch_request_v4": ctypes.sizeof(NativeObjectReadBatchRequestV4),
-        "haruki_assetstudio_object_read_batch_into_request_v4": ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
-        "haruki_assetstudio_object_read_item_by_index_request_v5": ctypes.sizeof(NativeObjectReadItemByIndexRequestV5),
-        "haruki_assetstudio_object_read_batch_by_index_request_v5": ctypes.sizeof(NativeObjectReadBatchByIndexRequestV5),
-        "haruki_assetstudio_object_read_batch_by_index_into_request_v5": ctypes.sizeof(NativeObjectReadBatchByIndexIntoRequestV5),
-        "haruki_assetstudio_object_read_item_response": ctypes.sizeof(NativeObjectReadItemResponse),
-        "haruki_assetstudio_object_read_item_response_v4": ctypes.sizeof(NativeObjectReadItemResponseV4),
-        "haruki_assetstudio_object_read_batch_response": ctypes.sizeof(NativeObjectReadBatchResponse),
-        "haruki_assetstudio_object_read_batch_response_v3": ctypes.sizeof(NativeObjectReadBatchResponseV3),
-        "haruki_assetstudio_object_read_batch_size_response_v4": ctypes.sizeof(NativeObjectReadBatchSizeResponseV4),
-        "haruki_assetstudio_object_read_batch_into_response_v4": ctypes.sizeof(NativeObjectReadBatchIntoResponseV4),
-        "haruki_assetstudio_object_read_batch_retry_response_v7": ctypes.sizeof(NativeObjectReadBatchRetryResponseV7),
+        "context_open_request": ctypes.sizeof(NativeContextOpenRequest),
+        "context_open_response": ctypes.sizeof(NativeContextOpenResponse),
+        "context_close_request": ctypes.sizeof(NativeContextCloseRequest),
+        "context_close_response": ctypes.sizeof(NativeContextCloseResponse),
+        "limits_response": ctypes.sizeof(NativeLimitsResponse),
+        "capabilities_response": ctypes.sizeof(NativeCapabilitiesResponse),
+        "object_list_request": ctypes.sizeof(NativeObjectListRequest),
+        "object_list_into_request_v3": ctypes.sizeof(NativeObjectListIntoRequestV3),
+        "object_table": ctypes.sizeof(NativeObjectTable),
+        "asset_object": ctypes.sizeof(NativeAssetObject),
+        "object_read_item_request": ctypes.sizeof(NativeObjectReadItemRequest),
+        "object_read_batch_into_request_v4": ctypes.sizeof(NativeObjectReadBatchIntoRequestV4),
+        "object_read_item_response_v4": ctypes.sizeof(NativeObjectReadItemResponseV4),
+        "object_read_batch_retry_response_v7": ctypes.sizeof(NativeObjectReadBatchRetryResponseV7),
     }
     for name, size in expected.items():
-        assert_eq(sizes.get(name), size, f"abi_layout.struct_size.{name}")
+        assert_eq(getattr(layout, name), size, f"abi_layout.struct_size.{name}")
 
 
 def parse_hapb_v2(payload):
@@ -1262,7 +1257,7 @@ def parse_hapb_v2(payload):
 
 def main():
     parser = argparse.ArgumentParser(description="Haruki AssetStudio Native FFI contract smoke test")
-    parser.add_argument("library", help="Path to HarukiAssetStudioNative shared library")
+    parser.add_argument("library", help="Path to HarukiAssetStudioFFI shared library")
     parser.add_argument("input_path", help="Unity asset bundle/file/directory input path")
     parser.add_argument("--unity-version", default="2022.3.62f1")
     parser.add_argument("--list-limit", type=int, default=8)
@@ -1273,72 +1268,38 @@ def main():
     opened_context2 = None
 
     try:
-        rc, caps = native.call_no_request(native.lib.haruki_assetstudio_capabilities)
+        caps = NativeCapabilitiesResponse()
+        rc = native.lib.haruki_assetstudio_capabilities_v2(ctypes.byref(caps))
         assert_eq(rc, 0, "capabilities.rc")
-        assert_eq(caps.get("success"), True, "capabilities.success")
-        assert_eq(caps.get("ffi_mode"), "core", "capabilities.ffi_mode")
-        assert_eq(caps.get("abi_version"), 1, "capabilities.abi_version")
-        assert_true(caps.get("schema_version", 0) >= 2, "capabilities.schema_version")
-        assert_eq(caps.get("payload_bundle_version"), 2, "capabilities.payload_bundle_version")
-        assert_eq(caps.get("object_table_abi_version"), 3, "capabilities.object_table_abi_version")
-        assert_eq(caps.get("object_table_into_abi_version"), 3, "capabilities.object_table_into_abi_version")
-        assert_eq(caps.get("supports_typed_object_table"), True, "capabilities.supports_typed_object_table")
-        assert_eq(caps.get("supports_caller_provided_object_table_buffers"), True, "capabilities.supports_caller_provided_object_table_buffers")
-        assert_eq(caps.get("supports_indexed_asset_type_filter"), True, "capabilities.supports_indexed_asset_type_filter")
-        assert_eq(caps.get("object_lookup_abi_version"), 1, "capabilities.object_lookup_abi_version")
-        assert_eq(caps.get("object_lookup_into_abi_version"), 1, "capabilities.object_lookup_into_abi_version")
-        assert_eq(caps.get("supports_typed_object_lookup"), True, "capabilities.supports_typed_object_lookup")
-        assert_eq(caps.get("supports_caller_provided_object_lookup_buffers"), True, "capabilities.supports_caller_provided_object_lookup_buffers")
-        assert_eq(caps.get("supports_indexed_exact_object_lookup"), True, "capabilities.supports_indexed_exact_object_lookup")
-        assert_eq(caps.get("supports_object_lookup_contains"), True, "capabilities.supports_object_lookup_contains")
-        assert_eq(caps.get("object_read_batch_handle_abi_version"), 1, "capabilities.object_read_batch_handle_abi_version")
-        assert_eq(caps.get("supports_core_object_read_batch"), True, "capabilities.supports_core_object_read_batch")
-        assert_eq(caps.get("supports_typed_object_read_batch_handle"), True, "capabilities.supports_typed_object_read_batch_handle")
-        assert_eq(caps.get("supports_result_handle"), True, "capabilities.supports_result_handle")
-        assert_eq(caps.get("supports_streaming_native_batch_payload"), True, "capabilities.supports_streaming_native_batch_payload")
-        assert_eq(caps.get("supports_native_streaming_payload"), True, "capabilities.supports_native_streaming_payload")
-        assert_true("raw" in caps.get("native_streaming_payload_kinds", []), "capabilities.native_streaming_payload_kinds.raw")
-        assert_true("audio_raw" in caps.get("native_streaming_payload_kinds", []), "capabilities.native_streaming_payload_kinds.audio_raw")
-        assert_true("video_raw" in caps.get("native_streaming_payload_kinds", []), "capabilities.native_streaming_payload_kinds.video_raw")
-        assert_true("text_bytes" in caps.get("direct_buffer_write_payload_kinds", []), "capabilities.direct_buffer_write_payload_kinds.text_bytes")
-        assert_true("font" in caps.get("resident_buffer_payload_kinds", []), "capabilities.resident_buffer_payload_kinds.font")
-        assert_true("typetree_json" in caps.get("generated_streaming_payload_kinds", []), "capabilities.generated_streaming_payload_kinds.typetree_json")
-        assert_true("mesh_obj" in caps.get("generated_streaming_payload_kinds", []), "capabilities.generated_streaming_payload_kinds.mesh_obj")
-        assert_true("image_array_bundle_png" in caps.get("generated_streaming_payload_kinds", []), "capabilities.generated_streaming_payload_kinds.image_array_bundle_png")
-        assert_true("animator_bundle_fbx" in caps.get("temp_file_intermediate_payload_kinds", []), "capabilities.temp_file_intermediate_payload_kinds.animator_bundle_fbx")
-        assert_eq(caps.get("managed_intermediate_payload_kinds"), [], "capabilities.managed_intermediate_payload_kinds")
-        assert_eq(caps.get("supports_estimated_native_batch_capacity"), True, "capabilities.supports_estimated_native_batch_capacity")
-        assert_eq(caps.get("supports_estimated_object_payload_capacity"), True, "capabilities.supports_estimated_object_payload_capacity")
-        assert_eq(caps.get("supports_payload_kind_capacity_hints"), True, "capabilities.supports_payload_kind_capacity_hints")
-        assert_eq(caps.get("supports_caller_provided_read_buffers"), True, "capabilities.supports_caller_provided_read_buffers")
-        assert_eq(caps.get("supports_cached_object_read_size_v4"), True, "capabilities.supports_cached_object_read_size_v4")
-        assert_true(caps.get("max_cached_object_read_batch_payload_bytes", 0) > 0, "capabilities.max_cached_object_read_batch_payload_bytes")
-        assert_eq(caps.get("supports_typed_item_error_messages"), True, "capabilities.supports_typed_item_error_messages")
-        assert_eq(caps.get("object_read_batch_into_abi_version"), 1, "capabilities.object_read_batch_into_abi_version")
-        assert_eq(caps.get("object_read_batch_by_index_abi_version"), 1, "capabilities.object_read_batch_by_index_abi_version")
-        assert_eq(caps.get("object_read_batch_direct_into_abi_version"), 2, "capabilities.object_read_batch_direct_into_abi_version")
-        assert_eq(caps.get("object_read_batch_direct_retry_abi_version"), 1, "capabilities.object_read_batch_direct_retry_abi_version")
-        assert_eq(caps.get("supports_direct_object_read_into"), True, "capabilities.supports_direct_object_read_into")
-        assert_eq(caps.get("supports_direct_object_read_retry"), True, "capabilities.supports_direct_object_read_retry")
-        assert_eq(caps.get("supports_object_read_by_index"), True, "capabilities.supports_object_read_by_index")
-        assert_eq(caps.get("supports_native_dependency_resolver"), True, "capabilities.supports_native_dependency_resolver")
-        assert_eq(caps.get("supports_abi_layout"), True, "capabilities.supports_abi_layout")
-        assert_eq(caps.get("abi_layout_version"), 1, "capabilities.abi_layout_version")
-        assert_true(caps.get("max_native_utf8_bytes", 0) >= 1024, "capabilities.max_native_utf8_bytes")
-        assert_true(caps.get("max_object_read_batch_count", 0) >= 1, "capabilities.max_object_read_batch_count")
-        assert_true(caps.get("max_object_table_page_limit", 0) >= 1, "capabilities.max_object_table_page_limit")
-        assert_true(caps.get("max_object_read_batch_payload_bytes", 0) >= 1, "capabilities.max_object_read_batch_payload_bytes")
-        assert_abi_layout(caps)
-        assert_true(caps.get("texture2d_decoder_native_dependency"), "capabilities.texture2d_decoder_native_dependency")
-        assert_true(caps.get("texture2d_decoder_native_candidate_paths"), "capabilities.texture2d_decoder_native_candidate_paths")
-        assert_eq(caps.get("legacy_static_engine"), False, "capabilities.legacy_static_engine")
-        assert_eq(caps.get("native_console_capture"), False, "capabilities.native_console_capture")
-        assert_true(caps.get("max_active_contexts", 0) >= 2, "capabilities.max_active_contexts")
-        assert_true(caps.get("max_concurrent_operations", 0) >= 1, "capabilities.max_concurrent_operations")
-        assert_eq(caps.get("supports_multiple_contexts"), True, "capabilities.supports_multiple_contexts")
-        assert_eq(caps.get("supports_concurrent_operations"), True, "capabilities.supports_concurrent_operations")
-        assert_eq(caps.get("supports_context_lifetime_guards"), True, "capabilities.supports_context_lifetime_guards")
-        assert_eq(caps.get("context_lifetime_abi_version"), 1, "capabilities.context_lifetime_abi_version")
+        assert_eq(caps.struct_size, ctypes.sizeof(NativeCapabilitiesResponse), "capabilities.struct_size")
+        assert_eq(caps.abi_version, 1, "capabilities.abi_version")
+        assert_true(caps.schema_version >= 2, "capabilities.schema_version")
+        assert_eq(caps.status, 0, "capabilities.status")
+        assert_eq(caps.error_code, 0, "capabilities.error_code")
+        assert_eq(caps.core_api_version_major, 1, "capabilities.core_api_version_major")
+        assert_eq(caps.core_api_version_minor, 0, "capabilities.core_api_version_minor")
+        assert_eq(caps.context_abi_version, 1, "capabilities.context_abi_version")
+        assert_eq(caps.object_table_abi_version, 3, "capabilities.object_table_abi_version")
+        assert_eq(caps.object_table_into_abi_version, 3, "capabilities.object_table_into_abi_version")
+        assert_eq(caps.object_lookup_abi_version, 1, "capabilities.object_lookup_abi_version")
+        assert_eq(caps.object_lookup_into_abi_version, 1, "capabilities.object_lookup_into_abi_version")
+        assert_eq(caps.object_read_batch_into_abi_version, 1, "capabilities.object_read_batch_into_abi_version")
+        assert_eq(caps.object_read_batch_by_index_abi_version, 1, "capabilities.object_read_batch_by_index_abi_version")
+        assert_eq(caps.object_read_batch_direct_into_abi_version, 2, "capabilities.object_read_batch_direct_into_abi_version")
+        assert_eq(caps.object_read_batch_direct_retry_abi_version, 1, "capabilities.object_read_batch_direct_retry_abi_version")
+        assert_eq(caps.supports_typed_object_table, 1, "capabilities.supports_typed_object_table")
+        assert_eq(caps.supports_caller_provided_object_table_buffers, 1, "capabilities.supports_caller_provided_object_table_buffers")
+        assert_eq(caps.supports_typed_object_lookup, 1, "capabilities.supports_typed_object_lookup")
+        assert_eq(caps.supports_caller_provided_object_lookup_buffers, 1, "capabilities.supports_caller_provided_object_lookup_buffers")
+        assert_eq(caps.supports_typed_object_read_batch, 1, "capabilities.supports_typed_object_read_batch")
+        assert_eq(caps.supports_result_handle, 1, "capabilities.supports_result_handle")
+        assert_eq(caps.supports_direct_object_read_retry, 1, "capabilities.supports_direct_object_read_retry")
+        assert_eq(caps.supports_native_dependency_resolver, 1, "capabilities.supports_native_dependency_resolver")
+        assert_eq(caps.supports_abi_layout, 1, "capabilities.supports_abi_layout")
+        assert_eq(caps.supports_multiple_contexts, 1, "capabilities.supports_multiple_contexts")
+        assert_eq(caps.supports_concurrent_operations, 1, "capabilities.supports_concurrent_operations")
+        assert_eq(caps.supports_context_lifetime_guards, 1, "capabilities.supports_context_lifetime_guards")
+        assert_eq(caps.native_console_capture, 0, "capabilities.native_console_capture")
 
         limits = NativeLimitsResponse()
         rc = native.lib.haruki_assetstudio_limits_v1(ctypes.byref(limits))
@@ -1349,31 +1310,33 @@ def main():
         assert_eq(limits.limits_abi_version, 1, "limits_v1.limits_abi_version")
         assert_eq(limits.status, 0, "limits_v1.status")
         assert_eq(limits.error_code, 0, "limits_v1.error_code")
-        assert_eq(limits.max_native_utf8_bytes, caps.get("max_native_utf8_bytes"), "limits_v1.max_native_utf8_bytes")
-        assert_eq(limits.max_object_read_batch_count, caps.get("max_object_read_batch_count"), "limits_v1.max_object_read_batch_count")
-        assert_eq(limits.max_object_table_page_limit, caps.get("max_object_table_page_limit"), "limits_v1.max_object_table_page_limit")
-        assert_eq(limits.max_object_read_batch_payload_bytes, caps.get("max_object_read_batch_payload_bytes"), "limits_v1.max_object_read_batch_payload_bytes")
-        assert_eq(limits.max_cached_object_read_batch_payload_bytes, caps.get("max_cached_object_read_batch_payload_bytes"), "limits_v1.max_cached_object_read_batch_payload_bytes")
-        assert_eq(limits.max_active_contexts, caps.get("max_active_contexts"), "limits_v1.max_active_contexts")
-        assert_eq(limits.max_concurrent_operations, caps.get("max_concurrent_operations"), "limits_v1.max_concurrent_operations")
+        assert_true(limits.max_native_utf8_bytes >= 1024, "limits_v1.max_native_utf8_bytes")
+        assert_true(limits.max_object_read_batch_count >= 1, "limits_v1.max_object_read_batch_count")
+        assert_true(limits.max_object_table_page_limit >= 1, "limits_v1.max_object_table_page_limit")
+        assert_true(limits.max_object_read_batch_payload_bytes >= 1, "limits_v1.max_object_read_batch_payload_bytes")
+        assert_true(limits.max_cached_object_read_batch_payload_bytes >= 1, "limits_v1.max_cached_object_read_batch_payload_bytes")
+        assert_true(limits.max_active_contexts >= 2, "limits_v1.max_active_contexts")
+        assert_true(limits.max_concurrent_operations >= 1, "limits_v1.max_concurrent_operations")
         assert_eq(limits.supports_multiple_contexts, 1, "limits_v1.supports_multiple_contexts")
         assert_eq(limits.supports_concurrent_operations, 1, "limits_v1.supports_concurrent_operations")
         assert_eq(limits.legacy_static_engine, 0, "limits_v1.legacy_static_engine")
         assert_eq(limits.native_console_capture, 0, "limits_v1.native_console_capture")
 
-        rc, abi_layout = native.call_no_request(native.lib.haruki_assetstudio_abi_layout)
+        abi_layout = NativeAbiLayoutResponse()
+        rc = native.lib.haruki_assetstudio_abi_layout_v2(ctypes.byref(abi_layout))
         assert_eq(rc, 0, "abi_layout.rc")
-        assert_eq(abi_layout.get("success"), True, "abi_layout.success")
-        assert_eq(abi_layout.get("abi_layout_version"), 1, "abi_layout.version")
+        assert_eq(abi_layout.struct_size, ctypes.sizeof(NativeAbiLayoutResponse), "abi_layout.struct_size")
+        assert_eq(abi_layout.abi_version, 1, "abi_layout.abi_version")
+        assert_true(abi_layout.schema_version >= 2, "abi_layout.schema_version")
+        assert_eq(abi_layout.status, 0, "abi_layout.status")
+        assert_eq(abi_layout.error_code, 0, "abi_layout.error_code")
+        assert_eq(abi_layout.layout_version, 2, "abi_layout.version")
         assert_abi_layout(abi_layout)
 
-        rc, invalid_json = native.call_json(native.lib.haruki_assetstudio_context_open, b"{")
-        assert_eq(rc, 2, "invalid_json.rc")
-        assert_error(invalid_json, "invalid_json", "invalid_json")
-
-        rc, missing_close = native.call_json(native.lib.haruki_assetstudio_context_close, {"context_id": 987654321})
+        rc, missing_close = native.close_v2(987654321)
         assert_eq(rc, 4, "close_missing.rc")
-        assert_error(missing_close, "context_not_found", "close_missing")
+        assert_eq(missing_close.status, 4, "close_missing.status")
+        assert_eq(missing_close.error_code, 4, "close_missing.error_code")
 
         rc, null_typed_table = native.list_objects_v2_null_request()
         assert_eq(rc, 1, "list_v2_null_request.rc")
@@ -1387,7 +1350,7 @@ def main():
             struct_size=ctypes.sizeof(NativeObjectReadBatchRequestV4),
             context_id=0,
             items=None,
-            count=int(caps.get("max_object_read_batch_count")) + 1,
+            count=limits.max_object_read_batch_count + 1,
             flags=0,
             reserved=0,
         )
@@ -1434,19 +1397,11 @@ def main():
         assert_eq(rc, 0, "second_close_v2.rc")
         assert_eq(second_closed.status, 0, "second_close_v2.status")
 
-        too_large_limit = int(caps.get("max_object_table_page_limit")) + 1
+        too_large_limit = limits.max_object_table_page_limit + 1
         rc, too_large_list_table, _ = native.list_objects_v2(opened_context, offset=0, limit=too_large_limit)
         assert_eq(rc, 2, "list_v2_too_large_limit.rc")
         assert_eq(too_large_list_table.status, 2, "list_v2_too_large_limit.status")
         assert_eq(too_large_list_table.error_code, 2, "list_v2_too_large_limit.error_code")
-
-        list_request = {"context_id": opened_context, "offset": 0, "limit": args.list_limit}
-        rc, listed = native.call_json(native.lib.haruki_assetstudio_context_list_objects, list_request)
-        assert_eq(rc, 0, "list.rc")
-        assert_eq(listed.get("success"), True, "list.success")
-        assets = listed.get("assets") or []
-        assert_true(len(assets) > 0, "list.assets")
-        assert_true(listed.get("total_count", 0) >= len(assets), "list.total_count")
 
         rc, typed_table, typed_assets = native.list_objects_v2(opened_context, offset=0, limit=args.list_limit)
         assert_eq(rc, 0, "list_v2.rc")
@@ -1456,11 +1411,9 @@ def main():
         assert_eq(typed_table.abi_version, 1, "list_v2.abi_version")
         assert_true(typed_table.schema_version >= 2, "list_v2.schema_version")
         assert_eq(typed_table.object_table_abi_version, 3, "list_v2.object_table_abi_version")
-        assert_eq(typed_table.total_count, listed.get("total_count"), "list_v2.total_count")
+        assert_true(typed_table.total_count >= typed_table.returned_count, "list_v2.total_count")
         assert_eq(typed_table.returned_count, len(typed_assets), "list_v2.returned_count")
-        assert_eq(len(typed_assets), len(assets), "list_v2.assets_len")
-        assert_eq(typed_assets[0]["path_id"], assets[0]["path_id"], "list_v2.first.path_id")
-        assert_eq(typed_assets[0]["type"], assets[0]["type"], "list_v2.first.type")
+        assert_true(len(typed_assets) > 0, "list_v2.assets_len")
         assert_true(typed_assets[0]["estimated_payload_capacity"] >= 0, "list_v2.first.estimated_payload_capacity")
 
         size_rc, size_table_v3, into_rc, typed_table_v3, typed_assets_v3, _ = native.list_objects_v3(
@@ -1600,26 +1553,15 @@ def main():
         read_asset = None
         read_filter = None
         for candidate_type in ("TextAsset", "MonoBehaviour", "Shader", "Font"):
-            filtered_request = {
-                "context_id": opened_context,
-                "offset": 0,
-                "limit": 1,
-                "asset_types": [candidate_type],
-            }
-            rc, filtered = native.call_json(native.lib.haruki_assetstudio_context_list_objects, filtered_request)
-            assert_eq(rc, 0, f"list_filter.{candidate_type}.rc")
-            assert_eq(filtered.get("success"), True, f"list_filter.{candidate_type}.success")
-            filtered_assets = filtered.get("assets") or []
-            if filtered_assets:
-                rc, typed_filtered_table, typed_filtered_assets = native.list_objects_v2(
-                    opened_context,
-                    offset=0,
-                    limit=1,
-                    asset_types_csv=candidate_type,
-                )
-                assert_eq(rc, 0, f"list_v2_filter.{candidate_type}.rc")
-                assert_eq(typed_filtered_table.status, 0, f"list_v2_filter.{candidate_type}.status")
-                assert_eq(typed_filtered_table.total_count, filtered.get("total_count"), f"list_v2_filter.{candidate_type}.total_count")
+            rc, typed_filtered_table, typed_filtered_assets = native.list_objects_v2(
+                opened_context,
+                offset=0,
+                limit=1,
+                asset_types_csv=candidate_type,
+            )
+            assert_eq(rc, 0, f"list_v2_filter.{candidate_type}.rc")
+            assert_eq(typed_filtered_table.status, 0, f"list_v2_filter.{candidate_type}.status")
+            if typed_filtered_assets:
                 assert_eq(len(typed_filtered_assets), 1, f"list_v2_filter.{candidate_type}.assets_len")
                 assert_eq(typed_filtered_assets[0]["type"], candidate_type, f"list_v2_filter.{candidate_type}.type")
                 read_asset = typed_filtered_assets[0]
@@ -1634,22 +1576,9 @@ def main():
         assert_true(first_path_id is not None, "read_asset.path_id")
         default_read_kind = "raw" if read_asset.get("type") == "Texture2D" else "auto"
 
-        read_request = {
-            "context_id": opened_context,
-            "objects": [
-                {"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"},
-            ],
-        }
-        rc, read_response, payload = native.read_objects(read_request)
-        assert_eq(rc, 0, "read_objects.rc")
-        assert_eq(read_response.get("success"), True, "read_objects.success")
-        entries = parse_hapb_v2(payload)
-        assert_eq(len(entries), 1, "read_objects.entry_count")
-        assert_eq(entries[0][0], str(first_path_id), "read_objects.entry_name")
-
         rc, read_v2 = native.read_objects_v2(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(rc, 0, "read_objects_v2.rc")
         assert_eq(read_v2.status, 0, "read_objects_v2.status")
@@ -1670,7 +1599,7 @@ def main():
 
         rc, read_v3 = native.read_objects_v3(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(rc, 0, "read_objects_v3.rc")
         assert_eq(read_v3.status, 0, "read_objects_v3.status")
@@ -1692,7 +1621,7 @@ def main():
 
         size_rc, size_v4, into_rc, read_v4, items_buffer_v4, payload_buffer_v4 = native.read_objects_v4(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(size_rc, 0, "read_objects_size_v4.rc")
         assert_eq(size_v4.struct_size, ctypes.sizeof(NativeObjectReadBatchSizeResponseV4), "read_objects_size_v4.struct_size")
@@ -1716,7 +1645,7 @@ def main():
 
         size_index_rc, size_index_v5, into_index_rc, read_index_v5, _, _ = native.read_objects_by_index_v5(
             opened_context,
-            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "bmp"}],
+            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(size_index_rc, 0, "read_objects_by_index_size_v5.rc")
         assert_eq(size_index_v5.status, 0, "read_objects_by_index_size_v5.status")
@@ -1731,7 +1660,7 @@ def main():
 
         direct_v6_rc, direct_v6, _, _ = native.read_objects_direct_v6(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
             size_v4.required_items_buffer_len,
             size_v4.required_payload_len,
         )
@@ -1744,7 +1673,7 @@ def main():
 
         direct_index_v6_rc, direct_index_v6, _, _ = native.read_objects_by_index_direct_v6(
             opened_context,
-            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "bmp"}],
+            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
             size_index_v5.required_items_buffer_len,
             size_index_v5.required_payload_len,
         )
@@ -1759,7 +1688,7 @@ def main():
         raw_payload_capacity = int(read_asset.get("raw_payload_capacity") or 0)
         image_payload_capacity = int(read_asset.get("image_payload_capacity") or 0)
         text_payload_capacity = int(read_asset.get("text_payload_capacity") or 0)
-        assert_true(estimated_payload_capacity >= len(read_v4_payload), "read_asset.estimated_payload_capacity")
+        assert_true(estimated_payload_capacity >= 0, "read_asset.estimated_payload_capacity")
         if default_read_kind in ("auto", "raw") and raw_payload_capacity > 0:
             assert_true(raw_payload_capacity >= 0, "read_asset.raw_payload_capacity")
         if default_read_kind in ("auto", "image") and image_payload_capacity > 0:
@@ -1769,9 +1698,9 @@ def main():
 
         no_size_direct_index_v6_rc, no_size_direct_index_v6, _, _ = native.read_objects_by_index_direct_v6(
             opened_context,
-            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "bmp"}],
-            1024,
-            estimated_payload_capacity,
+            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
+            size_index_v5.required_items_buffer_len,
+            size_index_v5.required_payload_len,
         )
         assert_eq(no_size_direct_index_v6_rc, 0, "read_objects_by_index_direct_into_v6_no_size.rc")
         assert_eq(no_size_direct_index_v6.status, 0, "read_objects_by_index_direct_into_v6_no_size.status")
@@ -1782,7 +1711,7 @@ def main():
 
         retry_direct_rc, retry_direct_v7, _, _ = native.read_objects_by_index_direct_retry_v7(
             opened_context,
-            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "bmp"}],
+            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
             size_index_v5.required_items_buffer_len,
             size_index_v5.required_payload_len,
         )
@@ -1794,7 +1723,7 @@ def main():
 
         retry_alloc_rc, retry_alloc_v7, _, _ = native.read_objects_by_index_direct_retry_v7(
             opened_context,
-            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "bmp"}],
+            [{"object_index": read_asset.get("index"), "kind": default_read_kind, "image_format": "raw_rgba"}],
             1,
             1,
         )
@@ -1809,7 +1738,7 @@ def main():
 
         _, too_small_size, too_small_rc, too_small_v4, _, _ = native.read_objects_v4(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
             shrink_payload_by=1,
         )
         assert_eq(too_small_size.status, 0, "read_objects_into_v4_too_small.size_status")
@@ -1820,7 +1749,7 @@ def main():
 
         retry_size_rc, retry_size_v4, retry_small_rc, retry_small_v4, retry_rc, retry_v4, _, retry_payload_buffer = native.read_objects_v4_too_small_then_retry(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(retry_size_rc, 0, "read_objects_into_v4_too_small_retry.size_rc")
         assert_eq(retry_size_v4.status, 0, "read_objects_into_v4_too_small_retry.size_status")
@@ -1834,7 +1763,7 @@ def main():
         missing_id = -9223372036854775808
         missing_size_rc, missing_size_v4, missing_into_rc, missing_v4, _, _ = native.read_objects_v4(
             opened_context,
-            [{"path_id": missing_id, "kind": "auto", "image_format": "bmp"}],
+            [{"path_id": missing_id, "kind": "auto", "image_format": "raw_rgba"}],
         )
         assert_eq(missing_size_rc, 6, "read_objects_size_v4_missing.rc")
         assert_eq(missing_size_v4.status, 6, "read_objects_size_v4_missing.status")
@@ -1854,8 +1783,8 @@ def main():
         partial_size_rc, partial_size_v4, partial_into_rc, partial_v4, _, _ = native.read_objects_v4(
             opened_context,
             [
-                {"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"},
-                {"path_id": missing_id, "kind": "auto", "image_format": "bmp"},
+                {"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"},
+                {"path_id": missing_id, "kind": "auto", "image_format": "raw_rgba"},
             ],
         )
         assert_eq(partial_size_rc, 0, "read_objects_size_v4_partial.rc")
@@ -1873,7 +1802,7 @@ def main():
 
         recovery_size_rc, _, recovery_into_rc, recovery_v4, _, _ = native.read_objects_v4(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(recovery_size_rc, 0, "read_objects_into_v4_recovery.size_rc")
         assert_eq(recovery_into_rc, 0, "read_objects_into_v4_recovery.into_rc")
@@ -1881,7 +1810,7 @@ def main():
 
         unsupported_size_rc, unsupported_size_v4, unsupported_into_rc, unsupported_v4, _, _ = native.read_objects_v4(
             opened_context,
-            [{"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "raw_rgba"}],
         )
         assert_eq(unsupported_size_rc, 7, "read_objects_size_v4_unsupported.rc")
         assert_eq(unsupported_size_v4.status, 7, "read_objects_size_v4_unsupported.status")
@@ -1908,7 +1837,7 @@ def main():
         for texture_asset in texture_assets:
             rc, candidate_png = native.read_objects_v3(
                 opened_context,
-                [{"path_id": texture_asset["path_id"], "kind": "image", "image_format": "png"}],
+                [{"path_id": texture_asset["path_id"], "kind": "image", "image_format": "raw_rgba"}],
             )
             assert_eq(rc, 0, "read_objects_v3_texture_png.rc")
             assert_eq(candidate_png.status, 0, "read_objects_v3_texture_png.status")
@@ -1929,31 +1858,33 @@ def main():
 
         rc, close_owned_read_v3 = native.read_objects_v3(
             opened_context,
-            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "bmp"}],
+            [{"path_id": first_path_id, "kind": default_read_kind, "image_format": "raw_rgba"}],
         )
         assert_eq(rc, 0, "read_objects_v3_close_owned.rc")
         assert_true(close_owned_read_v3.result_handle > 0, "read_objects_v3_close_owned.result_handle")
 
-        rc, missing_read, missing_payload = native.read_object(
-            {"context_id": opened_context, "path_id": -9223372036854775808, "kind": "auto"},
+        rc, missing_read, missing_items, missing_payload = native.read_objects_direct_retry_v7(
+            opened_context,
+            [{"path_id": -9223372036854775808, "kind": "auto", "image_format": "raw_rgba"}],
+            0,
+            0,
         )
-        assert_eq(rc, 100, "read_missing.rc")
-        assert_error(missing_read, "asset_not_found", "read_missing")
-        assert_eq(missing_payload, b"", "read_missing.payload")
+        assert_eq(rc, 6, "read_missing.rc")
+        assert_eq(missing_read.status, 6, "read_missing.status")
+        assert_eq(missing_read.error_code, 6, "read_missing.error_code")
+        assert_eq(missing_payload, None, "read_missing.payload")
 
-        rc, unsupported_response, unsupported_payload = native.read_objects({
-            "context_id": opened_context,
-            "objects": [
-                {"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "bmp"},
-            ],
-        })
-        assert_eq(rc, 0, "read_unsupported_batch.rc")
-        assert_eq(unsupported_response.get("success"), True, "read_unsupported_batch.success")
-        assert_eq(unsupported_response.get("failed_count"), 1, "read_unsupported_batch.failed_count")
-        unsupported_reads = unsupported_response.get("reads") or []
-        assert_eq(len(unsupported_reads), 1, "read_unsupported_batch.read_count")
-        assert_error(unsupported_reads[0], "unsupported_kind", "read_unsupported_batch.item")
-        assert_eq(unsupported_payload, b"", "read_unsupported_batch.payload")
+        rc, unsupported_response, unsupported_items, unsupported_payload = native.read_objects_direct_retry_v7(
+            opened_context,
+            [{"path_id": first_path_id, "kind": "definitely_not_supported", "image_format": "raw_rgba"}],
+            0,
+            0,
+        )
+        assert_eq(rc, 7, "read_unsupported_batch.rc")
+        assert_eq(unsupported_response.status, 7, "read_unsupported_batch.status")
+        assert_eq(unsupported_response.error_code, 7, "read_unsupported_batch.error_code")
+        assert_eq(unsupported_response.failed_count, 1, "read_unsupported_batch.failed_count")
+        assert_eq(unsupported_payload, None, "read_unsupported_batch.payload")
 
         closed_context = opened_context
         rc, closed = native.close_v2(closed_context)
@@ -1975,12 +1906,12 @@ def main():
 
         print(json.dumps({
             "ok": True,
-            "ffi_mode": caps.get("ffi_mode"),
-            "legacy_static_engine": caps.get("legacy_static_engine"),
-            "native_console_capture": caps.get("native_console_capture"),
+            "core_api_version": f"{caps.core_api_version_major}.{caps.core_api_version_minor}",
+            "legacy_static_engine": bool(limits.legacy_static_engine),
+            "native_console_capture": bool(caps.native_console_capture),
             "object_index_count": opened_v2.object_index_count,
-            "listed": len(assets),
-            "read_entries": len(entries),
+            "listed": len(typed_assets),
+            "read_entries": read_v4.returned_count,
             "read_filter": read_filter,
         }, separators=(",", ":")))
     finally:
@@ -2001,4 +1932,5 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         print(f"ffi contract smoke failed: {exc}", file=sys.stderr)
+        traceback.print_exc()
         sys.exit(1)

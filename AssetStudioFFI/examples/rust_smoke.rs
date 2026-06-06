@@ -1,21 +1,17 @@
-// Minimal Rust smoke harness for HarukiAssetStudioNative.
+// Minimal Rust smoke harness for HarukiAssetStudioFFI.
 //
 // Cargo.toml dependencies:
 //   libloading = "0.8"
-//   serde_json = "1"
 //
 // Usage:
 //   cargo run --release --example rust_smoke -- \
-//     /path/to/HarukiAssetStudioNative.dylib /path/to/bundle 2022.3.62f1
+//     /path/to/HarukiAssetStudioFFI.dylib /path/to/bundle 2022.3.62f1
 
 use libloading::{Library, Symbol};
-use serde_json::Value;
-use std::ffi::CStr;
-use std::os::raw::{c_char, c_int, c_longlong, c_uchar, c_void};
+use std::os::raw::{c_int, c_longlong, c_uchar, c_void};
 
-type NoRequestJsonFn = unsafe extern "C" fn(*mut *mut c_char) -> i32;
-type FreeStringFn = unsafe extern "C" fn(*mut c_char);
 type FreeBufferFn = unsafe extern "C" fn(*mut c_uchar);
+type CapabilitiesV2Fn = unsafe extern "C" fn(*mut HarukiAssetStudioCapabilitiesResponse) -> i32;
 type ContextOpenV2Fn = unsafe extern "C" fn(
     *const HarukiAssetStudioContextOpenRequest,
     *mut HarukiAssetStudioContextOpenResponse,
@@ -118,6 +114,47 @@ struct HarukiAssetStudioContextCloseResponse {
     error_code: c_int,
     context_id: c_longlong,
     duration_ms: c_longlong,
+    flags: c_int,
+    reserved: c_int,
+}
+
+#[repr(C)]
+#[derive(Default)]
+struct HarukiAssetStudioCapabilitiesResponse {
+    struct_size: c_int,
+    abi_version: c_int,
+    schema_version: c_int,
+    status: c_int,
+    error_code: c_int,
+    core_api_version_major: c_int,
+    core_api_version_minor: c_int,
+    context_abi_version: c_int,
+    object_table_abi_version: c_int,
+    object_table_into_abi_version: c_int,
+    object_lookup_abi_version: c_int,
+    object_lookup_into_abi_version: c_int,
+    object_read_abi_version: c_int,
+    object_read_batch_abi_version: c_int,
+    object_read_batch_handle_abi_version: c_int,
+    object_read_batch_into_abi_version: c_int,
+    object_read_batch_by_index_abi_version: c_int,
+    object_read_batch_direct_into_abi_version: c_int,
+    object_read_batch_direct_retry_abi_version: c_int,
+    supports_typed_object_table: c_int,
+    supports_caller_provided_object_table_buffers: c_int,
+    supports_typed_object_lookup: c_int,
+    supports_caller_provided_object_lookup_buffers: c_int,
+    supports_typed_object_read: c_int,
+    supports_typed_object_read_batch: c_int,
+    supports_result_handle: c_int,
+    supports_direct_object_read_retry: c_int,
+    supports_typed_context: c_int,
+    supports_native_dependency_resolver: c_int,
+    supports_abi_layout: c_int,
+    supports_multiple_contexts: c_int,
+    supports_concurrent_operations: c_int,
+    supports_context_lifetime_guards: c_int,
+    native_console_capture: c_int,
     flags: c_int,
     reserved: c_int,
 }
@@ -390,7 +427,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     unsafe {
         let library = Library::new(library_path)?;
-        let capabilities: Symbol<NoRequestJsonFn> = library.get(b"haruki_assetstudio_capabilities")?;
+        let capabilities_v2: Symbol<CapabilitiesV2Fn> =
+            library.get(b"haruki_assetstudio_capabilities_v2")?;
         let open_v2: Symbol<ContextOpenV2Fn> =
             library.get(b"haruki_assetstudio_context_open_v2")?;
         let list_size_v3: Symbol<ListObjectsSizeV3Fn> =
@@ -409,20 +447,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             library.get(b"haruki_assetstudio_context_read_objects_into_v4")?;
         let close_v2: Symbol<ContextCloseV2Fn> =
             library.get(b"haruki_assetstudio_context_close_v2")?;
-        let free_string: Symbol<FreeStringFn> = library.get(b"haruki_assetstudio_free_string")?;
         let free_buffer: Symbol<FreeBufferFn> = library.get(b"haruki_assetstudio_free_buffer")?;
         let result_free: Symbol<ResultFreeFn> = library.get(b"haruki_assetstudio_result_free")?;
 
-        let (_, caps) = call_json_no_request(*capabilities, *free_string)?;
-        assert_eq!(caps["ffi_mode"], "core");
-        assert_eq!(caps["legacy_static_engine"], false);
-        assert_eq!(caps["native_console_capture"], false);
-        assert!(caps["max_active_contexts"].as_i64().unwrap_or_default() >= 1);
-        assert_eq!(caps["supports_caller_provided_object_table_buffers"], true);
-        assert_eq!(caps["supports_caller_provided_read_buffers"], true);
-        assert_eq!(caps["supports_payload_kind_capacity_hints"], true);
-        assert_eq!(caps["supports_direct_object_read_retry"], true);
-        assert_eq!(caps["supports_typed_item_error_messages"], true);
+        let mut caps = HarukiAssetStudioCapabilitiesResponse::default();
+        let caps_status = capabilities_v2(&mut caps);
+        assert_eq!(caps_status, 0);
+        assert_eq!(caps.status, 0);
+        assert_eq!(
+            caps.struct_size as usize,
+            std::mem::size_of::<HarukiAssetStudioCapabilitiesResponse>()
+        );
+        assert_eq!(caps.core_api_version_major, 1);
+        assert_eq!(caps.object_table_abi_version, 3);
+        assert_eq!(caps.supports_caller_provided_object_table_buffers, 1);
+        assert_eq!(caps.supports_direct_object_read_retry, 1);
+        assert_eq!(caps.native_console_capture, 0);
         assert_eq!(caps["supports_typed_object_lookup"], true);
         assert_eq!(caps["supports_caller_provided_object_lookup_buffers"], true);
         assert!(caps["max_native_utf8_bytes"].as_i64().unwrap_or_default() >= 1024);
@@ -474,7 +514,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 context_id,
                 first.path_id,
                 "auto",
-                "bmp",
+                "raw_rgba",
             )?;
             println!(
                 "typed v4 read {} objects, {} bytes, into abi {}",
@@ -489,7 +529,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 context_id,
                 first.path_id,
                 "auto",
-                "bmp",
+                "raw_rgba",
             )?;
             println!(
                 "compat typed v3 read {} objects, {} bytes, handle abi {}",
@@ -510,16 +550,6 @@ struct OwnedAssetObject {
     object: HarukiAssetStudioAssetObject,
     path_id: c_longlong,
     string_data: Vec<u8>,
-}
-
-unsafe fn call_json_no_request(
-    function: NoRequestJsonFn,
-    free_string: FreeStringFn,
-) -> Result<(i32, Value), Box<dyn std::error::Error>> {
-    let mut response = std::ptr::null_mut();
-    let code = unsafe { function(&mut response) };
-    let json = unsafe { take_json(response, free_string)? };
-    Ok((code, serde_json::from_str(&json)?))
 }
 
 unsafe fn call_context_open_v2(
@@ -984,17 +1014,6 @@ unsafe fn call_context_close_v2(
     Ok(())
 }
 
-unsafe fn take_json(
-    response: *mut c_char,
-    free_string: FreeStringFn,
-) -> Result<String, Box<dyn std::error::Error>> {
-    if response.is_null() {
-        return Ok(String::new());
-    }
-    let json = unsafe { CStr::from_ptr(response) }.to_string_lossy().into_owned();
-    unsafe { free_string(response) };
-    Ok(json)
-}
 
 fn native_string(
     string_data: &[u8],
